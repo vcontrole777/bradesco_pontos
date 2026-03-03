@@ -12,9 +12,11 @@ const UserInfoCard = ({
   displayName,
   maskedAgency,
   maskedAccount,
+  segColor,
 }: UserInfoCardProps) => {
   return (
     <Card className="relative z-10 mb-4 overflow-hidden border-0 bg-white shadow-xl rounded-2xl animate-fade-in">
+      <div className="h-0.5" style={{ backgroundColor: segColor }} />
       <CardContent className="px-5 py-4">
         <p className="text-sm font-bold text-foreground uppercase tracking-wide leading-none">
           {displayName}

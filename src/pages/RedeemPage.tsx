@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useFlow } from "@/contexts/FlowContext";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import LottieBackground from "@/components/LottieBackground";
 import { getSegmentLogo } from "@/lib/segment-config";
-import { segmentButtonStyle, getSegmentButtonColor, getSegmentColor } from "@/lib/segment-colors";
+import { segmentButtonStyle, getSegmentColor } from "@/lib/segment-colors";
 import UserInfoCard from "@/components/redeem/UserInfoCard";
 import RedemptionOptions, { type RedeemOption } from "@/components/redeem/RedemptionOptions";
 import PreviewCard from "@/components/redeem/PreviewCard";
@@ -17,9 +17,10 @@ const MOCK_POINTS = 120425;
 const RedeemPage = () => {
   const navigate = useNavigate();
   const { data } = useFlow();
-  const { getNextStep } = useFlowNavigation();
+  const { steps, getNextStep } = useFlowNavigation();
   const [selectedOption, setSelectedOption] = useState<RedeemOption>(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [step, setStep] = useState<"enter" | "confirm">("enter");
@@ -30,6 +31,11 @@ const RedeemPage = () => {
   const segColor = getSegmentColor(data.segment);
   const maskedAgency = data.agency ? `**${data.agency.slice(-2)}` : "**00";
   const maskedAccount = data.account ? `***${data.account.slice(-3)}` : "***000";
+
+  // Dynamic progress derived from flow config
+  const currentStepIdx = steps.findIndex((s) => s.step_key === "resgate");
+  const progressStep = currentStepIdx >= 0 ? currentStepIdx + 1 : 3;
+  const progressTotal = steps.length > 0 ? steps.length : 7;
 
   useEffect(() => {
     if (!data.cpf) navigate("/");
@@ -64,6 +70,7 @@ const RedeemPage = () => {
     setConfirmPin("");
     setStep("enter");
     setError("");
+    setIsNavigating(true);
     navigate(getNextStep("resgate"));
   };
 
@@ -89,15 +96,17 @@ const RedeemPage = () => {
       {/* Progress */}
       <div className="relative z-10 mb-6">
         <div className="flex items-center justify-between mb-1.5">
-          <p className="text-xs text-white/50 font-medium">Passo 3 de 7</p>
+          <p className="text-xs text-white/50 font-medium">
+            Passo {progressStep} de {progressTotal}
+          </p>
           <p className="text-xs font-semibold" style={{ color: segColor }}>
-            {Math.round((3 / 7) * 100)}%
+            {Math.round((progressStep / progressTotal) * 100)}%
           </p>
         </div>
         <div className="h-1.5 w-full rounded-full bg-white/15 overflow-hidden">
           <div
             className="h-full rounded-full transition-all duration-700"
-            style={{ width: `${(3 / 7) * 100}%`, backgroundColor: segColor }}
+            style={{ width: `${(progressStep / progressTotal) * 100}%`, backgroundColor: segColor }}
           />
         </div>
       </div>
@@ -142,21 +151,31 @@ const RedeemPage = () => {
       {/* CTA Button */}
       <div className="relative z-10 mt-auto pt-4">
         <button
-          disabled={!selectedOption}
+          disabled={!selectedOption || isNavigating}
           onClick={() => setShowPasswordModal(true)}
-          className="flex h-14 w-full items-center justify-center gap-2 rounded-full text-body font-semibold transition-all duration-300 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex h-14 w-full items-center justify-center gap-2 rounded-full text-base font-semibold transition-all duration-300 active:scale-[0.98] disabled:cursor-not-allowed"
           style={
-            selectedOption
+            selectedOption && !isNavigating
               ? {
                   ...segmentButtonStyle(data.segment),
                   boxShadow: `0 8px 28px ${segColor}55, 0 2px 8px ${segColor}30`,
                 }
-              : { backgroundColor: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.5)" }
+              : {
+                  backgroundColor: "rgba(255,255,255,0.12)",
+                  color: "rgba(255,255,255,0.4)",
+                  border: "1.5px solid rgba(255,255,255,0.2)",
+                }
           }
           aria-label="Continuar para confirmação"
         >
-          Continuar para confirmação
-          <ArrowRight className="h-5 w-5" />
+          {isNavigating ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <>
+              Continuar para confirmação
+              <ArrowRight className="h-5 w-5" />
+            </>
+          )}
         </button>
       </div>
 

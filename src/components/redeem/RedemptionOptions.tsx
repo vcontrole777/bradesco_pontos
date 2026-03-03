@@ -46,7 +46,7 @@ const RedemptionOptions = ({
             <button
               key={opt.id}
               onClick={() => onSelect(opt.id)}
-              className="w-full rounded-xl border-2 p-4 text-left transition-all duration-200 active:scale-[0.98]"
+              className="w-full min-h-[60px] rounded-xl border-2 p-4 text-left transition-all duration-200 active:scale-[0.98]"
               style={
                 isSelected
                   ? {
