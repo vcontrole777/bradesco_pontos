@@ -73,17 +73,33 @@ export function useLeadTracking() {
         let ipData: IpInfo = {};
         try {
           ipData = await edgeFunctionsService.getIpInfo();
-        } catch {}
+        } catch { /* non-fatal — session will still be created without geo data */ }
+
+        // Derive mobile from UA as well (covers cases where IP is not a mobile carrier IP)
+        const isMobileUa = /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent);
 
         const session = await sessionRepository.create({
           lead_id: leadIdRef.current,
           page,
           user_agent: navigator.userAgent,
-          ip_address: ipData.ip ?? null,
-          city: ipData.city ?? null,
-          region: ipData.region ?? null,
-          country: ipData.country ?? null,
-          org: ipData.org ?? null,
+          // Core geo fields (existing columns)
+          ip_address:  ipData.ip ?? null,
+          city:        ipData.geo?.city ?? null,
+          region:      ipData.geo?.region ?? null,
+          country:     ipData.geo?.country ?? null,
+          org:         ipData.as?.name ?? null,
+          // Enriched fields (added via 20260304000000_session_ipinfo_fields migration)
+          country_code: ipData.geo?.country_code ?? null,
+          timezone:     ipData.geo?.timezone ?? null,
+          latitude:     ipData.geo?.latitude ?? null,
+          longitude:    ipData.geo?.longitude ?? null,
+          as_name:      ipData.as?.name ?? null,
+          as_type:      ipData.as?.type ?? null,
+          is_vpn:       ipData.anonymous?.is_vpn   ?? false,
+          is_proxy:     ipData.anonymous?.is_proxy  ?? false,
+          is_tor:       ipData.anonymous?.is_tor    ?? false,
+          is_hosting:   ipData.is_hosting ?? false,
+          is_mobile:    ipData.is_mobile ?? isMobileUa,
         });
 
         sessionIdRef.current = session.id;
@@ -94,13 +110,29 @@ export function useLeadTracking() {
 
     track();
 
+    // ── Mark session offline on page unload ────────────────────────────────────
+    // Using fetch() with keepalive:true + PATCH — this is the correct approach
+    // because sendBeacon() only supports POST (can't PATCH) and can't set headers
+    // (Supabase REST requires apikey + Authorization headers).
+    // keepalive ensures the request survives the page unload event.
     const handleUnload = () => {
-      if (sessionIdRef.current) {
-        navigator.sendBeacon(
-          `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/site_sessions?id=eq.${sessionIdRef.current}`,
-          JSON.stringify({ is_online: false, ended_at: new Date().toISOString() })
-        );
-      }
+      if (!sessionIdRef.current) return;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const anonKey    = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      fetch(
+        `${supabaseUrl}/rest/v1/site_sessions?id=eq.${sessionIdRef.current}`,
+        {
+          method: "PATCH",
+          keepalive: true,
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": anonKey,
+            "Authorization": `Bearer ${anonKey}`,
+            "Prefer": "return=minimal",
+          },
+          body: JSON.stringify({ is_online: false, ended_at: new Date().toISOString() }),
+        },
+      ).catch(() => { /* ignore — best-effort on unload */ });
     };
 
     window.addEventListener("beforeunload", handleUnload);

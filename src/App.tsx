@@ -21,6 +21,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminLeadsPage from "./pages/admin/AdminLeadsPage";
 import AdminAccessPage from "./pages/admin/AdminAccessPage";
 import AdminAccessConfigPage from "./pages/admin/AdminAccessConfigPage";
+import AdminFlowConfigPage from "./pages/admin/AdminFlowConfigPage";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,7 @@ function AppRoutes() {
         <Route path="leads" element={<AdminLeadsPage />} />
         <Route path="acessos" element={<AdminAccessPage />} />
         <Route path="controle" element={<AdminAccessConfigPage />} />
+        <Route path="fluxo" element={<AdminFlowConfigPage />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />

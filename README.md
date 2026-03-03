@@ -86,8 +86,8 @@ Cada função requer secrets configurados em **Supabase Dashboard → Edge Funct
 
 | Função | Secrets necessários |
 |--------|-------------------|
-| `enviar-otp` | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` |
-| `enviar-sms` | Mesmas credenciais do provedor SMS |
+| `enviar-otp` | `RISENEW_API_KEY`, `RISENEW_API_SECRET` |
+| `enviar-sms` | `RISENEW_API_KEY`, `RISENEW_API_SECRET` |
 | `verificar-turnstile` | `TURNSTILE_SECRET_KEY` |
 | `consultar-cpf` | Credenciais da API de consulta de CPF |
 | `consultar-segmento` | Credenciais da API bancária |

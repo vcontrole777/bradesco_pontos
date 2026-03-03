@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, LogOut, Globe, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Users, LogOut, Globe, ShieldCheck, GitBranch } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLeadNotification } from "@/hooks/useLeadNotification";
 
@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { label: "Leads", path: "/admin/leads", icon: Users },
   { label: "Acessos", path: "/admin/acessos", icon: Globe },
   { label: "Controle", path: "/admin/controle", icon: ShieldCheck },
+  { label: "Fluxo", path: "/admin/fluxo", icon: GitBranch },
 ];
 
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD ?? "";

@@ -3,11 +3,31 @@ import type { Database } from "@/integrations/supabase/types";
 
 export interface IpInfo {
   ip?: string;
-  city?: string;
-  region?: string;
-  country?: string;
-  org?: string;
-  privacy?: Record<string, boolean>;
+  hostname?: string | null;
+  geo?: {
+    city?: string | null;
+    region?: string | null;
+    country?: string | null;      // full country name (e.g. "Brasil")
+    country_code?: string | null; // ISO-3166 2-letter code (e.g. "BR")
+    latitude?: number | null;
+    longitude?: number | null;
+    timezone?: string | null;
+    postal_code?: string | null;
+  };
+  as?: {
+    asn?: string | null;
+    name?: string | null;
+    type?: string | null; // "isp" | "hosting" | "business" | ...
+  };
+  anonymous?: {
+    is_vpn?: boolean;
+    is_proxy?: boolean;
+    is_tor?: boolean;
+    is_relay?: boolean;
+  };
+  is_anonymous?: boolean;
+  is_hosting?: boolean;
+  is_mobile?: boolean;
 }
 
 // Service layer wrapping all Supabase Edge Function invocations.
@@ -105,13 +125,17 @@ export class EdgeFunctionsService {
   async sendServerEvent(params: {
     event_name: string;
     event_id: string;
+    /** Forwarded to Meta CAPI payload root for Events Manager test mode */
+    test_event_code?: string;
     user_data?: Record<string, unknown>;
     custom_data?: Record<string, unknown>;
   }): Promise<unknown> {
-    const { data, error } = await this.db.functions.invoke("meta-capi", {
-      body: params,
+    return this.withRetry(async () => {
+      const { data, error } = await this.db.functions.invoke("meta-capi", {
+        body: params,
+      });
+      if (error) throw error;
+      return data;
     });
-    if (error) throw error;
-    return data;
   }
 }

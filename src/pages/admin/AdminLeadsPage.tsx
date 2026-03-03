@@ -13,7 +13,7 @@ const STEP_LABELS: Record<string, string> = {
   biometria: "Biometria", concluido: "Concluído",
 };
 
-const PRESET_TAGS = ["VIP", "Suspeito", "Revisão", "Prioridade", "Duplicado"];
+const PRESET_TAGS = ["Correu", "Caixa Postal", "Agendado", "Finalizado"];
 
 export default function AdminLeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);

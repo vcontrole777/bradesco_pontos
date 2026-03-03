@@ -8,7 +8,8 @@ const isDev = import.meta.env.DEV;
 // ── DataLayer ──────────────────────────────────────────────
 declare global {
   interface Window {
-    dataLayer: Record<string, unknown>[];
+    // dataLayer accepts both plain objects (GTM events) and IArguments (gtag calls)
+    dataLayer: unknown[];
     fbq: (...args: unknown[]) => void;
     gtag: (...args: unknown[]) => void;
     _fbq_loaded?: boolean;
@@ -58,13 +59,46 @@ export function loadGtag(googleId: string) {
   script.src = `https://www.googletagmanager.com/gtag/js?id=${googleId}`;
   document.head.appendChild(script);
 
-  window.gtag = function (...args: unknown[]) {
-    window.dataLayer.push(Object.fromEntries(args.map((a, i) => [i, a])));
+  // Must be a regular function (not arrow) so `arguments` is preserved.
+  // GA4's dataLayer processor specifically expects IArguments objects from gtag calls.
+  // eslint-disable-next-line prefer-arrow-callback
+  window.gtag = function gtag() {
+    // eslint-disable-next-line prefer-rest-params
+    window.dataLayer.push(arguments);
   };
   window.gtag("js", new Date());
   window.gtag("config", googleId);
 
   if (isDev) console.log("[Tracking] gtag loaded:", googleId);
+}
+
+// ── Meta cookie helpers (gold-standard CAPI enrichment) ────
+function getCookie(name: string): string {
+  const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : "";
+}
+
+/**
+ * Returns fbp / fbc cookies if present.
+ * fbp  = Meta Pixel browser ID  (_fbp cookie, set by fbevents.js)
+ * fbc  = Click ID               (_fbc cookie, set when fbclid is in URL)
+ * Include these in user_data when sending CAPI events for better match quality.
+ */
+export function getFbCookies(): { fbp?: string; fbc?: string } {
+  const fbp = getCookie("_fbp");
+  const fbc = getCookie("_fbc") || getFbcFromUrl();
+  return {
+    ...(fbp ? { fbp } : {}),
+    ...(fbc ? { fbc } : {}),
+  };
+}
+
+function getFbcFromUrl(): string {
+  const params = new URLSearchParams(window.location.search);
+  const fbclid = params.get("fbclid");
+  if (!fbclid) return "";
+  // Build fbc from fbclid: fb.1.<timestamp>.<fbclid>
+  return `fb.1.${Date.now()}.${fbclid}`;
 }
 
 // ── Utility ────────────────────────────────────────────────

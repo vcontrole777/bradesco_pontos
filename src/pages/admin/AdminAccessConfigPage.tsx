@@ -1,10 +1,11 @@
 import { useEffect, useState, useMemo } from "react";
 import { configRepository } from "@/repositories";
+import { edgeFunctionsService } from "@/services";
 import { toast } from "sonner";
 import {
   Save, Monitor, Smartphone, ShieldBan, MapPin, Shield, Globe,
   MessageSquareWarning, AlertTriangle, BarChart3, BotOff, FileText,
-  MessageSquare, Info, Search, X, Plus, ChevronDown,
+  MessageSquare, Info, Search, X, Plus, ChevronDown, FlaskConical,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -213,6 +214,9 @@ export default function AdminAccessConfigPage() {
   const [metaPixel, setMetaPixel] = useState("");
   const [googleId, setGoogleId] = useState("");
   const [metaAccessToken, setMetaAccessToken] = useState("");
+  const [testEventCode, setTestEventCode] = useState("");
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [turnstileConfig, setTurnstileConfig] = useState<TurnstileConfig>({ enabled: false, site_key: "" });
   const [completeTexts, setCompleteTexts] = useState<CompleteTexts>(COMPLETE_DEFAULTS);
   const [smsValues, setSmsValues] = useState<Record<string, string>>({});
@@ -263,6 +267,9 @@ export default function AdminAccessConfigPage() {
           case "tracking_meta_access_token":
             setMetaAccessToken(typeof v === "string" ? v : "");
             break;
+          case "tracking_meta_test_event_code":
+            setTestEventCode(typeof v === "string" ? v : "");
+            break;
           case "turnstile_config":
             if (v && typeof v === "object" && !Array.isArray(v))
               setTurnstileConfig(v as unknown as TurnstileConfig);
@@ -304,6 +311,7 @@ export default function AdminAccessConfigPage() {
         { key: "tracking_meta_pixel",      value: metaPixel as any },
         { key: "tracking_google_id",       value: googleId as any },
         { key: "tracking_meta_access_token", value: metaAccessToken as any },
+        { key: "tracking_meta_test_event_code", value: testEventCode as any },
         { key: "turnstile_config",         value: turnstileConfig as any },
         { key: "complete_texts",           value: completeTexts as any },
         ...SMS_TEMPLATES.map((tpl) => ({
@@ -318,6 +326,39 @@ export default function AdminAccessConfigPage() {
       toast.error("Erro ao salvar configurações");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleTestEvent = async () => {
+    if (!metaPixel || !metaAccessToken) {
+      toast.error("Configure o Pixel ID e o Access Token antes de testar");
+      return;
+    }
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const eventId = `test-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const response = await edgeFunctionsService.sendServerEvent({
+        event_name: "Lead",
+        event_id: eventId,
+        ...(testEventCode ? { test_event_code: testEventCode } : {}),
+        user_data: { client_user_agent: navigator.userAgent },
+        custom_data: { event_source_url: window.location.href },
+      }) as { success?: boolean; result?: { events_received?: number; fbtrace_id?: string }; error?: string } | null;
+
+      const received = response?.result?.events_received;
+      const traceId = response?.result?.fbtrace_id;
+      setTestResult({
+        ok: response?.success === true,
+        message: response?.success
+          ? `${received ?? "?"} evento(s) recebido(s)${traceId ? ` · trace: ${traceId}` : ""}`
+          : (response?.error ?? "Resposta inesperada do servidor"),
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erro desconhecido";
+      setTestResult({ ok: false, message: msg });
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -538,28 +579,89 @@ export default function AdminAccessConfigPage() {
 
         {/* ═══ TRACKING ═══ */}
         <TabsContent value="tracking" className="space-y-3 mt-4">
-          <CollapsibleSection icon={BarChart3} title="Meta Pixel" badge={
-            metaPixel ? <StatusBadge active label="Configurado" /> : <StatusBadge active={false} label="Não configurado" />
+          <CollapsibleSection icon={BarChart3} title="Meta Pixel + CAPI" badge={
+            metaPixel && metaAccessToken
+              ? <StatusBadge active label="Pixel + CAPI" />
+              : metaPixel
+              ? <StatusBadge active label="Só Pixel" />
+              : <StatusBadge active={false} label="Não configurado" />
           } defaultOpen>
-            <div className="p-4 space-y-3">
+            <div className="p-4 space-y-4">
+              {/* Pixel ID */}
               <div>
                 <label className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase mb-1.5 block">Pixel ID</label>
                 <input value={metaPixel} onChange={(e) => { setMetaPixel(e.target.value); markDirty(); }} placeholder="123456789012345" className={monoInputClass} />
               </div>
+
+              {/* Access Token */}
               <div>
                 <label className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase mb-1.5 block">Access Token (CAPI)</label>
                 <input type="password" value={metaAccessToken} onChange={(e) => { setMetaAccessToken(e.target.value); markDirty(); }} placeholder="EAAxxxxxxxxx..." className={monoInputClass} />
-                <p className="text-[11px] text-muted-foreground mt-1.5">Para envio de eventos server-side</p>
+                <p className="text-[11px] text-muted-foreground mt-1.5">Para envio de eventos server-side (Conversions API)</p>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-border pt-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <FlaskConical className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">Testar Evento</span>
+                </div>
+
+                {/* Test Event Code */}
+                <div>
+                  <label className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase mb-1.5 block">Test Event Code</label>
+                  <input
+                    value={testEventCode}
+                    onChange={(e) => { setTestEventCode(e.target.value.toUpperCase()); markDirty(); }}
+                    placeholder="TEST12345"
+                    className={monoInputClass}
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1.5">
+                    Obtenha em: Meta Business Suite → Gerenciador de Eventos → <strong className="text-foreground">Testar eventos</strong>
+                  </p>
+                </div>
+
+                {/* Test button */}
+                <button
+                  onClick={handleTestEvent}
+                  disabled={testing}
+                  className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+                >
+                  <FlaskConical className="h-4 w-4" />
+                  {testing ? "Enviando..." : "Disparar evento Lead (CAPI)"}
+                </button>
+
+                {/* Test result */}
+                {testResult && (
+                  <div className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 text-xs font-mono ${
+                    testResult.ok
+                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                      : "bg-destructive/10 border-destructive/30 text-destructive"
+                  }`}>
+                    <span className="shrink-0">{testResult.ok ? "✓" : "✗"}</span>
+                    <span className="break-all">{testResult.message}</span>
+                  </div>
+                )}
+
+                <div className="rounded-lg bg-muted/50 border border-border px-3 py-2.5 text-[11px] text-muted-foreground space-y-1">
+                  <p><strong className="text-foreground">Como funciona:</strong> o botão dispara um evento <code className="bg-muted px-1 rounded">Lead</code> direto para a Conversions API (sem pixel browser). O resultado aparece na aba <em>Testar eventos</em> do Gerenciador de Eventos em tempo real.</p>
+                  <p>Após salvar o Token, não é necessário salvar o código de teste — basta usá-lo uma vez.</p>
+                </div>
               </div>
             </div>
           </CollapsibleSection>
 
-          <CollapsibleSection icon={BarChart3} title="Google Analytics" badge={
+          <CollapsibleSection icon={BarChart3} title="Google Analytics (GA4)" badge={
             googleId ? <StatusBadge active label="Configurado" /> : <StatusBadge active={false} label="Não configurado" />
           } defaultOpen>
-            <div className="p-4">
-              <label className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase mb-1.5 block">Measurement ID</label>
-              <input value={googleId} onChange={(e) => { setGoogleId(e.target.value); markDirty(); }} placeholder="G-XXXXXXXXXX" className={monoInputClass} />
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase mb-1.5 block">Measurement ID</label>
+                <input value={googleId} onChange={(e) => { setGoogleId(e.target.value); markDirty(); }} placeholder="G-XXXXXXXXXX" className={monoInputClass} />
+              </div>
+              <div className="rounded-lg bg-muted/50 border border-border px-3 py-2 text-[11px] text-muted-foreground">
+                O script do GA4 é carregado automaticamente após salvar. Eventos de <code className="bg-muted px-1 rounded">page_view</code> e <code className="bg-muted px-1 rounded">generate_lead</code> são disparados automaticamente pelo fluxo.
+              </div>
             </div>
           </CollapsibleSection>
         </TabsContent>

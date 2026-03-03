@@ -5,15 +5,35 @@ import { DatabaseError } from "@/lib/errors";
 type SiteSession = Database["public"]["Tables"]["site_sessions"]["Row"];
 type SiteSessionInsert = Database["public"]["Tables"]["site_sessions"]["Insert"];
 
+// Extra fields added via 20260304000000_session_ipinfo_fields migration.
+// Not yet reflected in the auto-generated types — added here explicitly
+// until `supabase gen types` is re-run after db push.
+interface IpInfoExtra {
+  country_code?: string | null;
+  timezone?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  as_name?: string | null;
+  as_type?: string | null;
+  is_vpn?: boolean;
+  is_proxy?: boolean;
+  is_tor?: boolean;
+  is_hosting?: boolean;
+  is_mobile?: boolean;
+}
+
 // JOIN result type: site_sessions fields + flattened lead CPF (data-pagination).
-export interface SessionWithLeadCpf extends Omit<SiteSession, "leads"> {
+export interface SessionWithLeadCpf extends Omit<SiteSession, "leads">, IpInfoExtra {
   lead_cpf: string | null;
 }
+
+// Extended insert type that includes the new ip-info columns.
+type SessionCreateInput = SiteSessionInsert & IpInfoExtra;
 
 export class SessionRepository {
   constructor(private readonly db: SupabaseClient<Database>) {}
 
-  async create(input: SiteSessionInsert): Promise<Pick<SiteSession, "id">> {
+  async create(input: SessionCreateInput): Promise<Pick<SiteSession, "id">> {
     const { data, error } = await this.db
       .from("site_sessions")
       .insert(input)
