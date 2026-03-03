@@ -20,12 +20,6 @@ const PasswordPage = () => {
   }, [data.cpf, navigate]);
 
   useEffect(() => {
-    if (data.password) {
-      navigate(getNextStep("senha"), { replace: true });
-    }
-  }, [data.password, navigate, getNextStep]);
-
-  useEffect(() => {
     if (error) {
       setShake(true);
       const t = setTimeout(() => setShake(false), 500);
