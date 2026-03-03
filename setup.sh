@@ -159,8 +159,10 @@ echo ""
 
 echo "[ 5/5 ] Buildando o frontend..."
 if command -v bun &> /dev/null; then
+  bun install
   bun run build
 else
+  npm install
   npm run build
 fi
 echo ""
