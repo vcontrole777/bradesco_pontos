@@ -82,14 +82,22 @@ export function useAccessGuard(): AccessGuardResult {
           try {
             const ipInfo: IpInfo = await edgeFunctionsService.getIpInfo();
             const ip = ipInfo.ip ?? "";
-            const country = (ipInfo.country ?? "").toUpperCase();
-            const location = `${ipInfo.city ?? ""} ${ipInfo.region ?? ""}`.toLowerCase();
-            const privacy = ipInfo.privacy ?? {};
+            // Use ISO country code for list matching (geo.country_code = "BR", not "Brasil")
+            const country = (ipInfo.geo?.country_code ?? "").toUpperCase();
+            const location = `${ipInfo.geo?.city ?? ""} ${ipInfo.geo?.region ?? ""}`.toLowerCase();
+            // Map new nested anonymous/hosting fields to the keys used in blockedConnTypes config
+            const privacyMap: Record<string, boolean> = {
+              vpn:     ipInfo.anonymous?.is_vpn   ?? false,
+              proxy:   ipInfo.anonymous?.is_proxy  ?? false,
+              tor:     ipInfo.anonymous?.is_tor    ?? false,
+              relay:   ipInfo.anonymous?.is_relay  ?? false,
+              hosting: ipInfo.is_hosting           ?? false,
+            };
             const ipLog = {
-              ip: ipInfo.ip,
-              city: ipInfo.city,
-              region: ipInfo.region,
-              country: ipInfo.country,
+              ip:      ipInfo.ip,
+              city:    ipInfo.geo?.city,
+              region:  ipInfo.geo?.region,
+              country: ipInfo.geo?.country,
             };
 
             if (blockedIps.includes(ip)) {
@@ -126,7 +134,7 @@ export function useAccessGuard(): AccessGuardResult {
               hosting: "Hosting/Datacenter",
             };
             for (const [key, label] of Object.entries(typeLabels)) {
-              if (blockedConnTypes[key] && privacy[key]) {
+              if (blockedConnTypes[key] && privacyMap[key]) {
                 const reason = `Acesso via ${label} não permitido.`;
                 await logBlock(reason, ipLog);
                 setState({ allowed: false, loading: false, reason });
