@@ -44,7 +44,7 @@ const PasswordPage = () => {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-white px-6 py-8">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-white px-6 py-8 pb-safe">
       {/* Back button */}
       <div className="absolute top-6 left-6">
         <button

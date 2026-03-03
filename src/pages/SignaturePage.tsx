@@ -29,7 +29,7 @@ const SignaturePage = () => {
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col px-6 py-8">
+    <div className="relative flex min-h-screen flex-col px-6 py-8 pb-safe">
       <LottieBackground segment={data.segment} />
 
       {/* Header */}

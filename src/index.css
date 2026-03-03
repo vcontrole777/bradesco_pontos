@@ -151,3 +151,56 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* ── Mobile-first global fixes ───────────────────────────────────────────────
+   Applied globally so every page benefits without per-page changes.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* 1. dvh replaces vh so the layout reflows correctly when the iOS keyboard
+      opens. 100vh is calculated once at load and never updates; 100dvh
+      (dynamic viewport height) shrinks when the keyboard appears, preventing
+      the fixed Lottie background from visually "jumping". */
+.min-h-screen {
+  min-height: 100dvh;
+}
+
+/* 2. iOS auto-zoom prevention.
+      Safari zooms the entire viewport when a focused input has font-size < 16px.
+      This zoom repositions all fixed elements (including the background) making
+      them appear to "move". Forcing a minimum of 16px disables the zoom. */
+input,
+select,
+textarea {
+  font-size: max(16px, 1em);
+}
+
+/* 3. Touch interaction polish — applies to every button and link.
+      - touch-action: manipulation  → removes 300 ms tap delay on iOS/Android
+      - -webkit-tap-highlight-color → removes the grey flash on tap (iOS/Android) */
+button,
+a,
+[role="button"],
+label {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 4. Disable overscroll bounce on the root document.
+      The elastic bounce on iOS can shift the visual viewport enough to make
+      fixed elements appear to slide. none prevents this on both axes. */
+html {
+  overscroll-behavior: none;
+}
+
+/* 5. Safe-area utilities for iPhone notch / Dynamic Island / home indicator.
+      Used on page wrappers that have content pinned to the bottom edge. */
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.px-safe {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
