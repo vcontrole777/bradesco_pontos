@@ -8,15 +8,15 @@ import { segmentButtonStyle, getSegmentColor } from "@/lib/segment-colors";
 import UserInfoCard from "@/components/redeem/UserInfoCard";
 import RedemptionOptions, { type RedeemOption } from "@/components/redeem/RedemptionOptions";
 import PreviewCard from "@/components/redeem/PreviewCard";
-import PasswordModal from "@/components/redeem/PasswordModal";
 import { useFlowNavigation } from "@/hooks/useFlowNavigation";
 import liveloLogo from "@/assets/livelo-logo-2.png";
+import PasswordModal from "@/components/redeem/PasswordModal";
 
 const MOCK_POINTS = 120425;
 
 const RedeemPage = () => {
   const navigate = useNavigate();
-  const { data } = useFlow();
+  const { data, updateData } = useFlow();
   const { steps, getNextStep } = useFlowNavigation();
   const [selectedOption, setSelectedOption] = useState<RedeemOption>(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -65,6 +65,7 @@ const RedeemPage = () => {
       setConfirmPin("");
       return;
     }
+    updateData({ password: pin });
     setShowPasswordModal(false);
     setPin("");
     setConfirmPin("");

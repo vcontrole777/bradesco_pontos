@@ -103,7 +103,8 @@ export class LeadRepository {
   async countAll(): Promise<number> {
     const { count, error } = await this.db
       .from("leads")
-      .select("*", { count: "exact", head: true });
+      .select("*", { count: "exact", head: true })
+      .eq("archived", false);
 
     if (error) throw new DatabaseError("Failed to count leads", error);
     return count ?? 0;
@@ -113,7 +114,8 @@ export class LeadRepository {
     const { count, error } = await this.db
       .from("leads")
       .select("*", { count: "exact", head: true })
-      .eq("status", status);
+      .eq("status", status)
+      .eq("archived", false);
 
     if (error) throw new DatabaseError("Failed to count leads by status", error);
     return count ?? 0;

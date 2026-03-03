@@ -35,10 +35,12 @@ export default function AdminLeadsPage() {
     setVisiblePwds((prev) => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
 
   const fetchOnlineLeadIds = async () => {
+    // Online = heartbeat recebido nos últimos 60s (last_seen_at é atualizado a cada 30s pelo cliente)
+    const onlineThreshold = new Date(Date.now() - 60 * 1000).toISOString();
     const { data } = await supabase
       .from("site_sessions")
       .select("lead_id")
-      .eq("is_online", true);
+      .gte("last_seen_at", onlineThreshold);
     setOnlineLeadIds(new Set((data ?? []).flatMap((s) => s.lead_id ? [s.lead_id] : [])));
   };
 

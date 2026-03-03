@@ -48,11 +48,8 @@ CREATE TRIGGER leads_set_updated_at
   BEFORE UPDATE ON public.leads
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
--- Attach to site_sessions.
-DROP TRIGGER IF EXISTS sessions_set_updated_at ON public.site_sessions;
-CREATE TRIGGER sessions_set_updated_at
-  BEFORE UPDATE ON public.site_sessions
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+-- site_sessions is an append-heavy log table without an updated_at column —
+-- no update trigger needed here.
 
 
 -- =============================================================

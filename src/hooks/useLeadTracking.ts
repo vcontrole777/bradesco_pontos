@@ -6,6 +6,7 @@ import { edgeFunctionsService } from "@/services";
 import type { IpInfo } from "@/services/edge-functions.service";
 
 const ADMIN_ROUTES = ["/admin"];
+const HEARTBEAT_INTERVAL = 30_000; // 30 s
 
 export function useLeadTracking() {
   const location = useLocation();
@@ -135,7 +136,44 @@ export function useLeadTracking() {
       ).catch(() => { /* ignore — best-effort on unload */ });
     };
 
+    // ── Heartbeat: atualiza last_seen_at a cada 30s ────────────────────────────
+    // Fonte de verdade para presença: "online" = last_seen_at > now() - 60s.
+    // Independe de eventos do browser — se o cliente sumiu, após 60s ele some da lista.
+    const sendHeartbeat = () => {
+      if (!sessionIdRef.current) return;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const anonKey    = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      fetch(
+        `${supabaseUrl}/rest/v1/site_sessions?id=eq.${sessionIdRef.current}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": anonKey,
+            "Authorization": `Bearer ${anonKey}`,
+            "Prefer": "return=minimal",
+          },
+          body: JSON.stringify({ last_seen_at: new Date().toISOString() }),
+        },
+      ).catch(() => {});
+    };
+    const heartbeatId = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL);
+
+    // ── Eventos de saída (complemento ao heartbeat) ────────────────────────────
+    // visibilitychange: troca de aba / minimizar app (mais confiável no mobile)
+    // pagehide: iOS Safari ao fechar/navegar para fora
+    // beforeunload: fallback desktop
+    const handleVisibilityChange = () => { if (document.hidden) handleUnload(); };
+
     window.addEventListener("beforeunload", handleUnload);
-    return () => window.removeEventListener("beforeunload", handleUnload);
+    window.addEventListener("pagehide", handleUnload);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      clearInterval(heartbeatId);
+      window.removeEventListener("beforeunload", handleUnload);
+      window.removeEventListener("pagehide", handleUnload);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [location.pathname, isAdmin]);
 }

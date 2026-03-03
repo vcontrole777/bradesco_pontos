@@ -54,12 +54,15 @@ export class SessionRepository {
   }
 
   async countStats(): Promise<{ online: number; total: number }> {
+    // Online = heartbeat recebido nos últimos 60s (consistente com fetchOnlineLeadIds)
+    const onlineThreshold = new Date(Date.now() - 60_000).toISOString();
+
     const [{ count: online, error: e1 }, { count: total, error: e2 }] =
       await Promise.all([
         this.db
           .from("site_sessions")
           .select("*", { count: "exact", head: true })
-          .eq("is_online", true),
+          .gte("last_seen_at", onlineThreshold),
         this.db
           .from("site_sessions")
           .select("*", { count: "exact", head: true }),

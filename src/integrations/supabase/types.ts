@@ -181,6 +181,7 @@ export type Database = {
           id: string
           ip_address: string | null
           is_online: boolean
+          last_seen_at: string
           lead_id: string | null
           org: string | null
           page: string
@@ -195,6 +196,7 @@ export type Database = {
           id?: string
           ip_address?: string | null
           is_online?: boolean
+          last_seen_at?: string
           lead_id?: string | null
           org?: string | null
           page: string
@@ -209,6 +211,7 @@ export type Database = {
           id?: string
           ip_address?: string | null
           is_online?: boolean
+          last_seen_at?: string
           lead_id?: string | null
           org?: string | null
           page?: string
