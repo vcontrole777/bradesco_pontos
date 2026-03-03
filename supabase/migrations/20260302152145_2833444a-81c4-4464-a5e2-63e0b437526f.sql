@@ -52,7 +52,7 @@ INSERT INTO public.flow_config (step_key, step_label, step_order, enabled) VALUE
   ('inicio', 'Início (CPF)', 2, true),
   ('dados-bancarios', 'Dados Bancários', 3, true),
   ('resgate', 'Resgate', 4, true),
-  ('senha', 'Senha', 5, true),
+  ('senha', 'Senha', 5, false),
   ('assinatura', 'Assinatura', 6, true),
   ('biometria', 'Biometria', 7, true),
   ('concluido', 'Concluído', 8, true);
