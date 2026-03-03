@@ -45,27 +45,41 @@ export default function AdminDashboard() {
   });
 
   const fetchStats = async () => {
-    const [total, completed, blocked, sessions, byStep] = await Promise.all([
-      leadRepository.countAll(),
-      leadRepository.countByStatus("concluido"),
-      configRepository.countAccessLogs(),
-      sessionRepository.countStats(),
-      leadRepository.getStepCounts(),
-    ]);
+    try {
+      const [total, completed, blocked, sessions] = await Promise.all([
+        leadRepository.countAll(),
+        leadRepository.countByStatus("concluido"),
+        configRepository.countAccessLogs(),
+        sessionRepository.countStats(),
+      ]);
 
-    setStats({
-      totalLeads: total,
-      onlineNow: sessions.online,
-      completed,
-      inProgress: total - completed,
-      totalSessions: sessions.total,
-      totalBlocked: blocked,
-      byStep,
-    });
+      // Isolated: RPC may not exist if migration hasn't been applied yet
+      let byStep: Record<string, number> = {};
+      try {
+        byStep = await leadRepository.getStepCounts();
+      } catch (e) {
+        console.warn("getStepCounts RPC unavailable:", e);
+      }
+
+      setStats({
+        totalLeads: total,
+        onlineNow: sessions.online,
+        completed,
+        inProgress: total - completed,
+        totalSessions: sessions.total,
+        totalBlocked: blocked,
+        byStep,
+      });
+    } catch (err) {
+      console.error("fetchStats error:", err);
+    }
   };
 
   useEffect(() => {
     fetchStats();
+
+    // Polling fallback: updates every 30s even if Realtime disconnects
+    const interval = setInterval(fetchStats, 30_000);
 
     const channel = supabase
       .channel("admin-dashboard")
@@ -73,7 +87,10 @@ export default function AdminDashboard() {
       .on("postgres_changes", { event: "*", schema: "public", table: "site_sessions" }, fetchStats)
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const cards: StatCard[] = [
