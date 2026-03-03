@@ -1,9 +1,45 @@
+import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { FlowProvider } from "@/contexts/FlowContext";
+
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error: unknown, info: React.ErrorInfo) {
+    console.error("[ErrorBoundary]", error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex min-h-screen flex-col items-center justify-center bg-white px-6 text-center">
+          <p className="text-lg font-bold text-foreground mb-2">Algo deu errado</p>
+          <p className="text-sm text-muted-foreground mb-6">
+            Tente recarregar a página. Se o problema persistir, entre em contato.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white"
+          >
+            Recarregar
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import { useLeadTracking } from "@/hooks/useLeadTracking";
 import { useTracking } from "@/hooks/useTracking";
 import SplashPage from "./pages/SplashPage";
@@ -56,17 +92,21 @@ function AppRoutes() {
 }
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <FlowProvider>
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
-      </FlowProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <FlowProvider>
+          <BrowserRouter>
+            <ErrorBoundary>
+              <AppRoutes />
+            </ErrorBoundary>
+          </BrowserRouter>
+        </FlowProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;

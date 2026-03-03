@@ -56,12 +56,16 @@ const CompletePage = () => {
     configRepository.getByKeys(["complete_texts"]).then((rows) => {
       const row = rows.find((r) => r.config_key === "complete_texts");
       if (row?.config_value) {
-        const val = typeof row.config_value === "string"
-          ? JSON.parse(row.config_value)
-          : row.config_value;
-        setTexts((prev) => ({ ...prev, ...val }));
+        try {
+          const val = typeof row.config_value === "string"
+            ? JSON.parse(row.config_value)
+            : row.config_value;
+          setTexts((prev) => ({ ...prev, ...val }));
+        } catch {
+          // keep defaults if admin saved invalid JSON
+        }
       }
-    });
+    }).catch((err) => console.error("[CompletePage] config fetch error:", err));
   }, []);
 
   // Track CompleteRegistration once

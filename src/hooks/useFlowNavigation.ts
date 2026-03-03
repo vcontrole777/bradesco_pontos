@@ -20,9 +20,18 @@ export function invalidateFlowCache(): void {
 
 export function useFlowNavigation() {
   const [steps, setSteps] = useState<FlowStep[]>(cachedSteps ?? []);
+  // isLoading: true only on first mount when cache is empty
+  const [isLoading, setIsLoading] = useState(!cachedSteps);
 
   useEffect(() => {
-    loadSteps().then(setSteps).catch(console.error);
+    if (cachedSteps) { setIsLoading(false); return; }
+    setIsLoading(true);
+    loadSteps()
+      .then((s) => { setSteps(s); setIsLoading(false); })
+      .catch((err) => {
+        console.error("[useFlowNavigation] Failed to load steps:", err);
+        setIsLoading(false); // unblock navigation even on error
+      });
   }, []);
 
   const enabledSteps = steps
@@ -43,5 +52,5 @@ export function useFlowNavigation() {
     return prev.step_key === "splash" ? "/" : `/${prev.step_key}`;
   };
 
-  return { steps: enabledSteps, getNextStep, getPrevStep, allSteps: steps };
+  return { steps: enabledSteps, getNextStep, getPrevStep, allSteps: steps, isLoading };
 }

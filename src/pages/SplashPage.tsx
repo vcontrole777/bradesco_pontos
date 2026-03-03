@@ -7,18 +7,20 @@ import { useAccessGuard } from "@/hooks/useAccessGuard";
 
 const SplashPage = () => {
   const navigate = useNavigate();
-  const { getNextStep } = useFlowNavigation();
-  const { allowed, loading, reason } = useAccessGuard();
+  const { getNextStep, isLoading: stepsLoading } = useFlowNavigation();
+  const { allowed, loading: guardLoading, reason } = useAccessGuard();
+
+  const ready = !guardLoading && !stepsLoading && allowed;
 
   useEffect(() => {
-    if (loading || !allowed) return;
+    if (!ready) return;
     const timer = setTimeout(() => {
       navigate(getNextStep("splash"));
     }, 4000);
     return () => clearTimeout(timer);
-  }, [navigate, getNextStep, loading, allowed]);
+  }, [navigate, getNextStep, ready]);
 
-  if (!loading && !allowed) {
+  if (!guardLoading && !allowed) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-white px-6 text-center">
         <img src={genericErrorSvg} alt="" className="w-[260px] h-auto mb-8 animate-fade-in" />
