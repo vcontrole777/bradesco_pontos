@@ -1,0 +1,13 @@
+project_id = "wiguzuvsldeeylrdshns"
+
+[functions.consultar-cpf]
+verify_jwt = false
+
+[functions.consultar-segmento]
+verify_jwt = false
+
+[functions.enviar-otp]
+verify_jwt = false
+
+[functions.ip-info]
+verify_jwt = false

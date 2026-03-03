@@ -1,0 +1,153 @@
+@font-face {
+  font-family: 'Bradesco Sans';
+  src: url('/fonts/bradesco-sans-light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Bradesco Sans';
+  src: url('/fonts/bradesco-sans-regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Bradesco Sans';
+  src: url('/fonts/bradesco-sans-medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Bradesco Sans';
+  src: url('/fonts/bradesco-sans-semibold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Bradesco Sans';
+  src: url('/fonts/bradesco-sans-bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 270 20% 98%;
+    --foreground: 270 50% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 270 50% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 270 50% 10%;
+
+    --primary: 271 68% 40%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 150 60% 42%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 270 15% 93%;
+    --muted-foreground: 270 10% 45%;
+
+    --accent: 150 55% 92%;
+    --accent-foreground: 150 60% 25%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 270 15% 88%;
+    --input: 270 15% 88%;
+    --ring: 271 68% 40%;
+
+    --radius: 0.75rem;
+
+    --livelo-green: 150 60% 42%;
+    --livelo-purple: 271 68% 40%;
+    --livelo-purple-light: 271 60% 95%;
+    --livelo-purple-100: 271 60% 90%;
+    --livelo-purple-200: 271 60% 80%;
+    --bradesco-red: 348 91% 42%;
+    --bradesco-pink: 342 90% 53%;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 271 30% 6%;
+    --foreground: 270 20% 95%;
+
+    --card: 271 25% 9%;
+    --card-foreground: 270 20% 95%;
+
+    --popover: 271 25% 9%;
+    --popover-foreground: 270 20% 95%;
+
+    --primary: 271 70% 65%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 150 50% 35%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 271 20% 15%;
+    --muted-foreground: 270 10% 60%;
+
+    --accent: 271 25% 18%;
+    --accent-foreground: 270 20% 95%;
+
+    --destructive: 0 62.8% 40%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 271 15% 20%;
+    --input: 271 15% 20%;
+    --ring: 271 70% 65%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
