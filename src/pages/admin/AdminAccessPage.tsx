@@ -69,7 +69,18 @@ export default function AdminAccessPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [blockedIps, setBlockedIps] = useState<Set<string>>(new Set());
   const [, setTick] = useState(0); // re-render every minute to update relative times
+
+  const fetchBlockedIps = async () => {
+    try {
+      const configs = await configRepository.getByKeys(["blocked_ips"]);
+      const ips = (configs[0]?.config_value as string[] | null) ?? [];
+      setBlockedIps(new Set(ips));
+    } catch (e) {
+      console.warn("Failed to fetch blocked IPs:", e);
+    }
+  };
 
   const fetchSessions = async () => {
     setLoading(true);
@@ -102,6 +113,7 @@ export default function AdminAccessPage() {
 
   useEffect(() => {
     fetchSessions();
+    fetchBlockedIps();
 
     // Realtime: refresh on any site_sessions change
     const channel = supabase
@@ -178,6 +190,7 @@ export default function AdminAccessPage() {
         return;
       }
       toast.success(`IP ${ip} bloqueado`);
+      fetchBlockedIps();
     } catch (err) {
       console.error("Block IP error:", err);
       toast.error("Erro ao bloquear IP");
@@ -311,6 +324,12 @@ export default function AdminAccessPage() {
                           <span className="flex items-center gap-1.5 text-xs font-mono text-muted-foreground">
                             <WifiOff className="h-3 w-3 shrink-0" />
                             Offline
+                          </span>
+                        )}
+                        {blockedIps.has(s.ip_address ?? "") && (
+                          <span className="flex items-center gap-1 mt-1 text-[9px] font-mono font-bold uppercase tracking-wider text-red-400 bg-red-500/10 border border-red-500/20 rounded px-1 py-0.5 w-fit">
+                            <ShieldBan className="h-2.5 w-2.5 shrink-0" />
+                            Bloqueado
                           </span>
                         )}
                       </td>

