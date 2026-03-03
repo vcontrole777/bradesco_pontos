@@ -22,62 +22,7 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     const body = await req.json();
-    const { phone, action, code, turnstileToken } = body;
-
-    // Verify Turnstile token on OTP send (protects against SMS flooding).
-    // Only enforced when BOTH the secret is set server-side AND Turnstile is
-    // enabled in the admin panel (turnstile_config.enabled = true in access_config).
-    // This prevents 403s when the admin disables Turnstile in the panel but the
-    // TURNSTILE_SECRET_KEY env var is still present.
-    if (action === "send") {
-      const TURNSTILE_SECRET = Deno.env.get("TURNSTILE_SECRET_KEY");
-      if (TURNSTILE_SECRET) {
-        // Read admin config to check if Turnstile is actually enabled
-        let turnstileEnabledInAdmin = false;
-        try {
-          const { data: cfgRow } = await supabase
-            .from("access_config")
-            .select("config_value")
-            .eq("config_key", "turnstile_config")
-            .maybeSingle();
-          if (cfgRow?.config_value && typeof cfgRow.config_value === "object") {
-            turnstileEnabledInAdmin = (cfgRow.config_value as Record<string, unknown>).enabled === true;
-          }
-        } catch (e) {
-          console.warn("Could not read turnstile_config, skipping Turnstile check:", e);
-        }
-
-        if (turnstileEnabledInAdmin) {
-          if (!turnstileToken || typeof turnstileToken !== "string") {
-            return new Response(
-              JSON.stringify({ error: "Verificação de segurança obrigatória" }),
-              { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-            );
-          }
-
-          const verifyRes = await fetch(
-            "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                secret: TURNSTILE_SECRET,
-                response: turnstileToken,
-              }),
-            }
-          );
-
-          const verifyData = await verifyRes.json();
-          if (!verifyData.success) {
-            console.warn("Turnstile verification failed:", verifyData["error-codes"]);
-            return new Response(
-              JSON.stringify({ error: "Verificação de segurança inválida. Tente novamente." }),
-              { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-            );
-          }
-        }
-      }
-    }
+    const { phone, action, code } = body;
 
     if (!phone || typeof phone !== "string") {
       return new Response(
