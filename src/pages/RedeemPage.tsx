@@ -113,7 +113,7 @@ const RedeemPage = () => {
 
       {/* Hero Card — Livelo logo + pontos */}
       <div className="relative z-10 mb-4 animate-slide-up-fade">
-        <div className="rounded-2xl border border-white/25 bg-white/85 backdrop-blur-md shadow-xl overflow-hidden">
+        <div className="rounded-2xl border-0 bg-white shadow-xl overflow-hidden">
           <div className="h-0.5" style={{ backgroundColor: segColor }} />
           <div className="px-5 pt-5 pb-5">
             <img
