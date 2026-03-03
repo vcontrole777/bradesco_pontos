@@ -171,7 +171,7 @@ All colors MUST be HSL.
 input,
 select,
 textarea {
-  font-size: max(16px, 1em);
+  font-size: max(16px, 1em) !important;
 }
 
 /* 3. Touch interaction polish — applies to every button and link.
