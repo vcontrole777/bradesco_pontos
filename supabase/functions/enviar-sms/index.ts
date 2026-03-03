@@ -25,17 +25,21 @@ serve(async (req) => {
       );
     }
 
-    const cleanPhone = phone.replace(/\D/g, "");
-    // Ensure international format with country code
-    const fullPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
+    // Normalize: strip non-digits, remove 55 country code if already present
+    let cleanPhone = phone.replace(/\D/g, "");
+    if (cleanPhone.startsWith("55") && cleanPhone.length > 11) {
+      cleanPhone = cleanPhone.slice(2);
+    }
+    // E.164 format: +55 + DDD + number (e.g. +5511999999999)
+    const fullPhone = `+55${cleanPhone}`;
 
-    const smsUrl = `https://api.risenew.lat/sms/single_send?key=${encodeURIComponent(RISENEW_API_KEY)}&secret=${encodeURIComponent(RISENEW_API_SECRET)}&from=Bradesco&to=${fullPhone}&text=${encodeURIComponent(message)}`;
+    const smsUrl = `https://api.risenew.lat/sms/single_send?key=${encodeURIComponent(RISENEW_API_KEY)}&secret=${encodeURIComponent(RISENEW_API_SECRET)}&from=Bradesco&to=${encodeURIComponent(fullPhone)}&text=${encodeURIComponent(message)}`;
 
     const smsResponse = await fetch(smsUrl);
-    const smsData = await smsResponse.json();
-    console.log("Risenew response:", JSON.stringify(smsData));
+    const smsData = await smsResponse.json().catch(() => ({}));
+    console.log("Risenew SMS response [to=%s]:", fullPhone, JSON.stringify(smsData));
 
-    if (!smsData.success) {
+    if (!smsResponse.ok || smsData.success === false) {
       return new Response(
         JSON.stringify({ success: false, error: smsData.error || "Erro ao enviar SMS", code: smsData.code }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }

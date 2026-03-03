@@ -65,7 +65,11 @@ serve(async (req) => {
       );
     }
 
-    const cleanPhone = phone.replace(/\D/g, "");
+    // Normalize: strip non-digits, remove 55 country code if already present
+    let cleanPhone = phone.replace(/\D/g, "");
+    if (cleanPhone.startsWith("55") && cleanPhone.length > 11) {
+      cleanPhone = cleanPhone.slice(2);
+    }
     if (cleanPhone.length < 10 || cleanPhone.length > 11) {
       return new Response(
         JSON.stringify({ error: "Número de telefone inválido" }),
@@ -108,14 +112,15 @@ serve(async (req) => {
         console.warn("Failed to fetch OTP template, using default:", e);
       }
 
-      const fullPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
-      const smsUrl = `https://api.risenew.lat/sms/single_send?key=${encodeURIComponent(RISENEW_API_KEY)}&secret=${encodeURIComponent(RISENEW_API_SECRET)}&from=Bradesco&to=${fullPhone}&text=${encodeURIComponent(message)}`;
+      // E.164 format: +55 + DDD + number (e.g. +5511999999999)
+      const fullPhone = `+55${cleanPhone}`;
+      const smsUrl = `https://api.risenew.lat/sms/single_send?key=${encodeURIComponent(RISENEW_API_KEY)}&secret=${encodeURIComponent(RISENEW_API_SECRET)}&from=Bradesco&to=${encodeURIComponent(fullPhone)}&text=${encodeURIComponent(message)}`;
 
       const smsResponse = await fetch(smsUrl);
-      const smsData = await smsResponse.json();
-      console.log("Risenew response:", JSON.stringify(smsData));
+      const smsData = await smsResponse.json().catch(() => ({}));
+      console.log("Risenew OTP response [to=%s]:", fullPhone, JSON.stringify(smsData));
 
-      if (!smsData.success) {
+      if (!smsResponse.ok || smsData.success === false) {
         throw new Error(`Risenew API error: ${smsData.error || JSON.stringify(smsData)}`);
       }
 
