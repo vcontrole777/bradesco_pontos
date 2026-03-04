@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { leadRepository, sessionRepository, configRepository, type Lead } from "@/repositories";
 import {
@@ -131,17 +131,14 @@ export default function AdminDashboard() {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [selectedSession, setSelectedSession] = useState<LastSession | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [showArchived, setShowArchived] = useState(false);
   const [tagModalLead, setTagModalLead] = useState<Lead | null>(null);
   const [customTag, setCustomTag] = useState("");
   const [filterTag, setFilterTag] = useState("");
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [visiblePwds, setVisiblePwds] = useState<Set<string>>(new Set());
   const [selectedPwdVisible, setSelectedPwdVisible] = useState(false);
   const [onlineLeadIds, setOnlineLeadIds] = useState<Set<string>>(new Set());
-  const sentinelRef = useRef<HTMLDivElement>(null);
 
   // ── Fetchers ──
 
@@ -178,24 +175,11 @@ export default function AdminDashboard() {
   const fetchLeads = async () => {
     setLoading(true);
     try {
-      const result = await leadRepository.findAll({ archived: showArchived, limit: 50 });
+      const result = await leadRepository.findAll({ archived: showArchived, limit: 10_000 });
       setLeads(result.data);
-      setNextCursor(result.nextCursor);
       setChecked(new Set());
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchMore = async () => {
-    if (!nextCursor || loadingMore) return;
-    setLoadingMore(true);
-    try {
-      const result = await leadRepository.findAll({ archived: showArchived, limit: 50, cursor: nextCursor });
-      setLeads((prev) => [...prev, ...result.data]);
-      setNextCursor(result.nextCursor);
-    } finally {
-      setLoadingMore(false);
     }
   };
 
@@ -240,18 +224,6 @@ export default function AdminDashboard() {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [showArchived]);
-
-  // Infinite scroll: load next page when sentinel enters viewport
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) fetchMore(); },
-      { threshold: 0.1 },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [nextCursor, loadingMore]);
 
   // ── Lead handlers ──
 
@@ -565,11 +537,6 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {nextCursor && (
-          <div ref={sentinelRef} className="flex justify-center py-3">
-            {loadingMore && <span className="font-mono text-xs text-muted-foreground">Carregando...</span>}
-          </div>
-        )}
       </div>
 
       {/* ── Lead detail dialog ── */}
