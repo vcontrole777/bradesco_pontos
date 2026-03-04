@@ -205,9 +205,8 @@ export default function AdminDashboard() {
       .select("page, user_agent, last_seen_at, latitude, longitude, is_mobile")
       .eq("lead_id", leadId)
       .order("last_seen_at", { ascending: false })
-      .limit(1)
-      .single();
-    if (data) setSelectedSession(data as LastSession);
+      .limit(1);
+    if (data && data.length > 0) setSelectedSession(data[0] as LastSession);
   };
 
   const handleSelectLead = (lead: Lead, idx: number) => {

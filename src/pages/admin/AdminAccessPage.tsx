@@ -138,7 +138,7 @@ export default function AdminAccessPage() {
   };
 
   const handleBlockASN = (s: SessionWithLeadCpf) => {
-    const asn = s.org || s.as_name || "";
+    const asn = s.as_name || s.org || "";
     if (!asn) { toast.info("ASN não disponível"); return; }
     navigator.clipboard.writeText(asn).catch(() => {});
     toast.info(`ASN copiado: ${asn}`);
@@ -263,8 +263,8 @@ export default function AdminAccessPage() {
                       </td>
 
                       {/* Provedor (ASN) */}
-                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground max-w-[180px] truncate" title={s.org || s.as_name || undefined}>
-                        {s.org || s.as_name || "—"}
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground max-w-[180px] truncate" title={s.as_name || s.org || undefined}>
+                        {s.as_name || s.org || "—"}
                       </td>
 
                       {/* Cidade */}
