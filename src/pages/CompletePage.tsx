@@ -10,7 +10,6 @@ import { configRepository } from "@/repositories";
 import { edgeFunctionsService } from "@/services";
 import { unmask } from "@/lib/masks";
 import { trackCompleteRegistration } from "@/lib/tracking";
-import { sendServerEvent } from "@/lib/tracking-capi";
 
 function maskCpfDisplay(cpf: string): string {
   const digits = cpf.replace(/\D/g, "");
@@ -73,18 +72,15 @@ const CompletePage = () => {
   useEffect(() => {
     if (trackedRef.current || !data.cpf) return;
     trackedRef.current = true;
-    const eventId = trackCompleteRegistration({ content_name: "complete_flow" });
-
     // Split nome into first/last for better EMQ match quality
     const nameParts = (data.nome ?? "").trim().split(/\s+/);
     const fn = nameParts[0] ?? "";
     const ln = nameParts.length > 1 ? nameParts[nameParts.length - 1] : "";
 
-    sendServerEvent({
-      event_name: "CompleteRegistration",
-      event_id: eventId,
-      // ph + fn + ln + external_id (CPF) maximise Event Match Quality
-      user_data: {
+    // Track CompleteRegistration — browser pixel + CAPI fire-and-forget (unified)
+    trackCompleteRegistration({
+      customData: { content_name: "complete_flow" },
+      userData: {
         ph: unmask(data.phone),
         external_id: unmask(data.cpf),
         ...(fn ? { fn } : {}),

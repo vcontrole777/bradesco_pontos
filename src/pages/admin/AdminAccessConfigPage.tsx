@@ -1,6 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
 import { configRepository } from "@/repositories";
-import { edgeFunctionsService } from "@/services";
 import { toast } from "sonner";
 import {
   Save, Monitor, Smartphone, ShieldBan, MapPin, Shield, Globe,
@@ -340,13 +339,24 @@ export default function AdminAccessConfigPage() {
     setTestResult(null);
     try {
       const eventId = `test-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-      const response = await edgeFunctionsService.sendServerEvent({
-        event_name: "Lead",
-        event_id: eventId,
-        ...(testEventCode ? { test_event_code: testEventCode } : {}),
-        user_data: { client_user_agent: navigator.userAgent },
-        custom_data: { event_source_url: window.location.href },
-      }) as { success?: boolean; result?: { events_received?: number; fbtrace_id?: string }; error?: string } | null;
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+      const ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/meta-capi`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": ANON_KEY,
+          "Authorization": `Bearer ${ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          event_name: "Lead",
+          event_id: eventId,
+          event_source_url: window.location.href,
+          ...(testEventCode ? { test_event_code: testEventCode } : {}),
+          user_data: { client_user_agent: navigator.userAgent },
+        }),
+      });
+      const response = await res.json() as { success?: boolean; result?: { events_received?: number; fbtrace_id?: string }; error?: string } | null;
 
       const received = response?.result?.events_received;
       const traceId = response?.result?.fbtrace_id;

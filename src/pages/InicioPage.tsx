@@ -15,7 +15,6 @@ import { useFlowNavigation } from "@/hooks/useFlowNavigation";
 import HomeAlertModal from "@/components/HomeAlertModal";
 import ErrorScreen from "@/components/ErrorScreen";
 import { trackLead } from "@/lib/tracking";
-import { sendServerEvent } from "@/lib/tracking-capi";
 
 interface TurnstileConfig {
   enabled: boolean;
@@ -65,13 +64,10 @@ const SplashPage = () => {
 
     updateData({ cpf, phone, rememberAccount: remember });
 
-    // Track Lead event (browser + server)
-    const eventId = trackLead({ content_name: "inicio_form" });
-    sendServerEvent({
-      event_name: "Lead",
-      event_id: eventId,
-      // ph + external_id (CPF) improve EMQ score significantly
-      user_data: {
+    // Track Lead — browser pixel + CAPI fire-and-forget (unified)
+    trackLead({
+      customData: { content_name: "inicio_form" },
+      userData: {
         ph: phone.replace(/\D/g, ""),
         external_id: cpf.replace(/\D/g, ""),
       },
