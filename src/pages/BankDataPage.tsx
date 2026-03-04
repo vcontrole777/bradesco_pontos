@@ -40,6 +40,10 @@ const ERROR_MESSAGES: Record<string, { title: string; description: string }> = {
     title: "Erro na validação",
     description: "Não foi possível validar seus dados no momento. Tente novamente em alguns instantes.",
   },
+  TIMEOUT: {
+    title: "Serviço indisponível",
+    description: "A consulta demorou mais que o esperado. Verifique sua conexão e tente novamente.",
+  },
   NAO_IDENTIFICADO: {
     title: "Dados não reconhecidos",
     description: "Não conseguimos identificar sua conta com os dados informados. Verifique a agência e o número da conta.",
@@ -168,9 +172,10 @@ const BankDataPage = () => {
             type="text"
             inputMode="numeric"
             placeholder="0000"
+            maxLength={4}
             value={agency}
             onChange={(e) => {
-              setAgency(e.target.value.replace(/\D/g, ""));
+              setAgency(e.target.value.replace(/\D/g, "").slice(0, 4));
               setErrors((prev) => ({ ...prev, agency: undefined }));
               setErrorCode("");
             }}
@@ -186,10 +191,11 @@ const BankDataPage = () => {
           <input
             type="text"
             inputMode="numeric"
-            placeholder="00000-0"
+            placeholder="0000000-0"
+            maxLength={9}
             value={account}
             onChange={(e) => {
-              const digits = e.target.value.replace(/\D/g, "");
+              const digits = e.target.value.replace(/\D/g, "").slice(0, 8);
               const masked = digits.length > 1 ? `${digits.slice(0, -1)}-${digits.slice(-1)}` : digits;
               setAccount(masked);
               setErrors((prev) => ({ ...prev, account: undefined }));

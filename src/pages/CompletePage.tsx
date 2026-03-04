@@ -77,7 +77,7 @@ const CompletePage = () => {
     sendServerEvent({
       event_name: "CompleteRegistration",
       event_id: eventId,
-      user_data: { ph: [unmask(data.phone)] },
+      user_data: { ph: unmask(data.phone) },
     });
   }, [data.cpf, data.phone]);
 

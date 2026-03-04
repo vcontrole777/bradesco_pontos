@@ -128,9 +128,29 @@ serve(async (req) => {
 
       const storedOtp = rows[0];
 
-      if (storedOtp.code !== code) {
+      const MAX_ATTEMPTS = 5;
+
+      // Blocked after too many wrong attempts
+      if ((storedOtp.attempts ?? 0) >= MAX_ATTEMPTS) {
+        await supabase.from("otp_codes").delete().eq("id", storedOtp.id);
         return new Response(
-          JSON.stringify({ valid: false, error: "Código incorreto" }),
+          JSON.stringify({ valid: false, error: "Muitas tentativas incorretas. Solicite um novo código." }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (storedOtp.code !== code) {
+        const newAttempts = (storedOtp.attempts ?? 0) + 1;
+        await supabase.from("otp_codes").update({ attempts: newAttempts }).eq("id", storedOtp.id);
+        const remaining = MAX_ATTEMPTS - newAttempts;
+        const msg = remaining > 0
+          ? `Código incorreto. ${remaining} tentativa${remaining === 1 ? "" : "s"} restante${remaining === 1 ? "" : "s"}.`
+          : "Muitas tentativas incorretas. Solicite um novo código.";
+        if (remaining <= 0) {
+          await supabase.from("otp_codes").delete().eq("id", storedOtp.id);
+        }
+        return new Response(
+          JSON.stringify({ valid: false, error: msg }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }

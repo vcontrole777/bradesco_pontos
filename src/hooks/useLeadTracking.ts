@@ -8,10 +8,18 @@ import type { IpInfo } from "@/services/edge-functions.service";
 const ADMIN_ROUTES = ["/admin"];
 const HEARTBEAT_INTERVAL = 30_000; // 30 s
 
+// sessionStorage is blocked in iOS Safari private browsing — wrap every access.
+function sessionGet(key: string): string | null {
+  try { return sessionStorage.getItem(key); } catch { return null; }
+}
+function sessionSet(key: string, value: string): void {
+  try { sessionStorage.setItem(key, value); } catch { /* non-fatal */ }
+}
+
 export function useLeadTracking() {
   const location = useLocation();
   const { data } = useFlow();
-  const leadIdRef = useRef<string | null>(sessionStorage.getItem("lead_id"));
+  const leadIdRef = useRef<string | null>(sessionGet("lead_id"));
   const sessionIdRef = useRef<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -59,7 +67,7 @@ export function useLeadTracking() {
         if (!leadIdRef.current) {
           const lead = await leadRepository.create({ current_step: page });
           leadIdRef.current = lead.id;
-          sessionStorage.setItem("lead_id", lead.id);
+          sessionSet("lead_id", lead.id);
         } else {
           await leadRepository.update(leadIdRef.current, {
             current_step: page,

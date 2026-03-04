@@ -47,17 +47,34 @@ Deno.serve(async (req) => {
     url.searchParams.set("custom_headers", "true");
     url.searchParams.set("wait", "5000");
 
-    const response = await fetch(url.toString(), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Referer": "https://banco.bradesco/",
-        "Origin": "https://banco.bradesco",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "pt-BR,pt;q=0.9",
-      },
-      body: postBody.toString(),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 35_000);
+
+    let response: Response;
+    try {
+      response = await fetch(url.toString(), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Referer": "https://banco.bradesco/",
+          "Origin": "https://banco.bradesco",
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "pt-BR,pt;q=0.9",
+        },
+        body: postBody.toString(),
+        signal: controller.signal,
+      });
+    } catch (fetchErr) {
+      clearTimeout(timeoutId);
+      if ((fetchErr as Error).name === "AbortError") {
+        return new Response(
+          JSON.stringify({ error: "TIMEOUT" }),
+          { status: 504, headers: json }
+        );
+      }
+      throw fetchErr;
+    }
+    clearTimeout(timeoutId);
 
     const html = await response.text();
     console.log(`[segmento] status=${response.status} html_length=${html.length} agency=${agency} account=${account}`);

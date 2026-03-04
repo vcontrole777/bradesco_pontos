@@ -1,11 +1,42 @@
 import { edgeFunctionsService } from "@/services";
 import { getFbCookies } from "./tracking";
 
+// ── SHA-256 hashing for CAPI PII fields ────────────────────────────────────
+// Meta requires all customer PII (ph, em, fn, ln, etc.) to be SHA-256 hashed
+// before sending to the Conversions API.
+async function sha256Hex(value: string): Promise<string> {
+  const encoded = new TextEncoder().encode(value.toLowerCase().trim());
+  const hashBuffer = await crypto.subtle.digest("SHA-256", encoded);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+// Fields that Meta requires to be SHA-256 hashed.
+const PII_FIELDS = new Set(["ph", "em", "fn", "ln", "ct", "st", "zp", "country", "db", "ge", "external_id"]);
+
+// Hash all PII string fields in user_data; skip non-string values and already-hashed values.
+async function hashUserData(
+  userData: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(userData)) {
+    if (PII_FIELDS.has(key) && typeof value === "string" && value.length > 0) {
+      // Skip if already looks like a SHA-256 hash (64-char lowercase hex)
+      result[key] = /^[0-9a-f]{64}$/.test(value) ? value : await sha256Hex(value);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
 /**
  * Send a server-side event to Meta CAPI via edge function.
  *
  * Gold-standard practices applied automatically:
  * - event_id MUST match the browser-side event_id for deduplication
+ * - PII fields (ph, em, etc.) are SHA-256 hashed automatically
  * - fbp / fbc cookies enriched for better match quality
  * - client_user_agent sent from browser
  * - event_source_url set to the current page
@@ -22,12 +53,13 @@ export async function sendServerEvent(params: {
   try {
     const fbCookies = getFbCookies();
 
-    // Merge browser signals into user_data; caller-provided values win
-    const enrichedUserData: Record<string, unknown> = {
+    // Merge browser signals first, then hash PII from caller-provided data
+    const rawUserData: Record<string, unknown> = {
       client_user_agent: navigator.userAgent,
       ...fbCookies,
       ...params.user_data,
     };
+    const enrichedUserData = await hashUserData(rawUserData);
 
     // Merge event_source_url into custom_data; caller-provided values win
     const enrichedCustomData: Record<string, unknown> = {

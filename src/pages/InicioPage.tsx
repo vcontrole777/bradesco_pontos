@@ -70,7 +70,7 @@ const SplashPage = () => {
     sendServerEvent({
       event_name: "Lead",
       event_id: eventId,
-      user_data: { ph: [phone.replace(/\D/g, "")] },
+      user_data: { ph: phone.replace(/\D/g, "") },
     });
 
     if (remember) {

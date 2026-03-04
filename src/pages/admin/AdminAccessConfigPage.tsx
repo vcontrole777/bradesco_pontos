@@ -217,6 +217,8 @@ export default function AdminAccessConfigPage() {
   const [testEventCode, setTestEventCode] = useState("");
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [testingWeb, setTestingWeb] = useState(false);
+  const [testResultWeb, setTestResultWeb] = useState<{ ok: boolean; message: string } | null>(null);
   const [turnstileConfig, setTurnstileConfig] = useState<TurnstileConfig>({ enabled: false, site_key: "" });
   const [completeTexts, setCompleteTexts] = useState<CompleteTexts>(COMPLETE_DEFAULTS);
   const [smsValues, setSmsValues] = useState<Record<string, string>>({});
@@ -359,6 +361,30 @@ export default function AdminAccessConfigPage() {
       setTestResult({ ok: false, message: msg });
     } finally {
       setTesting(false);
+    }
+  };
+
+  const handleTestWebEvent = () => {
+    if (!metaPixel) {
+      toast.error("Configure o Pixel ID antes de testar");
+      return;
+    }
+    setTestingWeb(true);
+    setTestResultWeb(null);
+    try {
+      const fbq = (window as unknown as { fbq?: (...args: unknown[]) => void }).fbq;
+      if (!fbq) {
+        setTestResultWeb({ ok: false, message: "window.fbq não encontrado — o pixel não foi carregado. Acesse o site normalmente primeiro para inicializar o pixel." });
+        return;
+      }
+      const eventId = `web-test-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      fbq("track", "Lead", { content_name: "admin_web_test" }, { eventID: eventId });
+      setTestResultWeb({ ok: true, message: `Evento Lead disparado via Pixel (event_id: ${eventId}). Verifique no Meta Pixel Helper ou na aba Atividade do pixel.` });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro desconhecido";
+      setTestResultWeb({ ok: false, message: msg });
+    } finally {
+      setTestingWeb(false);
     }
   };
 
@@ -621,17 +647,27 @@ export default function AdminAccessConfigPage() {
                   </p>
                 </div>
 
-                {/* Test button */}
-                <button
-                  onClick={handleTestEvent}
-                  disabled={testing}
-                  className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50"
-                >
-                  <FlaskConical className="h-4 w-4" />
-                  {testing ? "Enviando..." : "Disparar evento Lead (CAPI)"}
-                </button>
+                {/* Test buttons */}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={handleTestEvent}
+                    disabled={testing}
+                    className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+                  >
+                    <FlaskConical className="h-4 w-4" />
+                    {testing ? "Enviando..." : "Disparar Lead (CAPI)"}
+                  </button>
+                  <button
+                    onClick={handleTestWebEvent}
+                    disabled={testingWeb}
+                    className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+                  >
+                    <FlaskConical className="h-4 w-4" />
+                    {testingWeb ? "Enviando..." : "Disparar Lead (Pixel Web)"}
+                  </button>
+                </div>
 
-                {/* Test result */}
+                {/* CAPI test result */}
                 {testResult && (
                   <div className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 text-xs font-mono ${
                     testResult.ok
@@ -639,12 +675,25 @@ export default function AdminAccessConfigPage() {
                       : "bg-destructive/10 border-destructive/30 text-destructive"
                   }`}>
                     <span className="shrink-0">{testResult.ok ? "✓" : "✗"}</span>
-                    <span className="break-all">{testResult.message}</span>
+                    <span className="break-all">CAPI: {testResult.message}</span>
+                  </div>
+                )}
+
+                {/* Web pixel test result */}
+                {testResultWeb && (
+                  <div className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 text-xs font-mono ${
+                    testResultWeb.ok
+                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                      : "bg-destructive/10 border-destructive/30 text-destructive"
+                  }`}>
+                    <span className="shrink-0">{testResultWeb.ok ? "✓" : "✗"}</span>
+                    <span className="break-all">Pixel Web: {testResultWeb.message}</span>
                   </div>
                 )}
 
                 <div className="rounded-lg bg-muted/50 border border-border px-3 py-2.5 text-[11px] text-muted-foreground space-y-1">
-                  <p><strong className="text-foreground">Como funciona:</strong> o botão dispara um evento <code className="bg-muted px-1 rounded">Lead</code> direto para a Conversions API (sem pixel browser). O resultado aparece na aba <em>Testar eventos</em> do Gerenciador de Eventos em tempo real.</p>
+                  <p><strong className="text-foreground">CAPI:</strong> dispara server-side via Conversions API. Aparece na aba <em>Testar eventos</em> do Gerenciador de Eventos.</p>
+                  <p><strong className="text-foreground">Pixel Web:</strong> dispara browser-side via <code className="bg-muted px-1 rounded">window.fbq</code>. Aparece no Meta Pixel Helper e na aba Atividade do pixel.</p>
                   <p>Após salvar o Token, não é necessário salvar o código de teste — basta usá-lo uma vez.</p>
                 </div>
               </div>
