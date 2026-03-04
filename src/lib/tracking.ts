@@ -11,6 +11,7 @@ declare global {
     // dataLayer accepts both plain objects (GTM events) and IArguments (gtag calls)
     dataLayer: unknown[];
     fbq: (...args: unknown[]) => void;
+    _fbq: (...args: unknown[]) => void; // Meta's internal reference used by fbevents.js
     gtag: (...args: unknown[]) => void;
     _fbq_loaded?: boolean;
     _gtag_loaded?: boolean;
@@ -44,13 +45,19 @@ export function loadMetaPixel(pixelId: string) {
   if (!pixelId || window._fbq_loaded) return;
   window._fbq_loaded = true;
 
-  // Minimal fbq stub: queue only, no `loaded`/`version` flags so that
-  // fbevents.js does not interpret this as a conflicting pre-existing pixel.
+  // fbq stub following Meta's standard pattern exactly:
+  // both window.fbq and window._fbq must point to the same object so that
+  // fbevents.js recognises it as its own stub and upgrades it in-place,
+  // avoiding the "Multiple pixels with conflicting versions" warning.
   const noop = function (...args: unknown[]) {
     (noop as any).queue.push(args);
   } as any;
-  noop.queue = [] as unknown[];
-  window.fbq = noop;
+  noop.push    = noop;
+  noop.loaded  = true;
+  noop.version = "2.0";
+  noop.queue   = [] as unknown[];
+  window.fbq   = noop;
+  if (!window._fbq) window._fbq = noop;
 
   const script = document.createElement("script");
   script.async = true;
