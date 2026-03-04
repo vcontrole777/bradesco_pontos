@@ -48,6 +48,10 @@ const ERROR_MESSAGES: Record<string, { title: string; description: string }> = {
     title: "Dados não reconhecidos",
     description: "Não conseguimos identificar sua conta com os dados informados. Verifique a agência e o número da conta.",
   },
+  CPF_NAO_ENCONTRADO: {
+    title: "CPF não encontrado",
+    description: "O CPF informado não foi localizado em nossa base de dados. Verifique o número digitado e tente novamente.",
+  },
   ERRO_GENERICO: {
     title: "Erro inesperado",
     description: "Ocorreu um erro ao consultar seus dados. Tente novamente.",
@@ -117,6 +121,11 @@ const BankDataPage = () => {
       const segment = segRes.segment || "";
       const nome = cpfRes.nome || "";
       const segError = segRes.error || "";
+
+      if (!nome) {
+        setErrorCode("CPF_NAO_ENCONTRADO");
+        return;
+      }
 
       if (segError) {
         setErrorCode(segError);
