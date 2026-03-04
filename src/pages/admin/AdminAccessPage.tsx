@@ -201,7 +201,7 @@ export default function AdminAccessPage() {
               <tr className="border-b border-border bg-muted/50">
                 <th className="px-4 py-3 text-left font-mono text-[10px] tracking-wider text-muted-foreground uppercase whitespace-nowrap">ID / Seq.</th>
                 <th className="px-4 py-3 text-left font-mono text-[10px] tracking-wider text-muted-foreground uppercase">Status</th>
-                <th className="px-4 py-3 text-left font-mono text-[10px] tracking-wider text-muted-foreground uppercase whitespace-nowrap">Tipo de Acesso</th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] tracking-wider text-muted-foreground uppercase">Usuário</th>
                 <th className="px-4 py-3 text-left font-mono text-[10px] tracking-wider text-muted-foreground uppercase whitespace-nowrap">Endereço IP</th>
                 <th className="px-4 py-3 text-left font-mono text-[10px] tracking-wider text-muted-foreground uppercase whitespace-nowrap">Provedor (ASN)</th>
                 <th className="px-4 py-3 text-left font-mono text-[10px] tracking-wider text-muted-foreground uppercase">Cidade</th>
@@ -250,11 +250,9 @@ export default function AdminAccessPage() {
                         )}
                       </td>
 
-                      {/* Tipo de Acesso */}
-                      <td className="px-4 py-3">
-                        <span className={`font-mono text-xs font-semibold ${isSuspect ? "text-amber-400" : "text-foreground"}`}>
-                          {getAccessType(s, seq)}
-                        </span>
+                      {/* Usuário */}
+                      <td className="px-4 py-3 font-mono text-xs text-foreground">
+                        {s.lead_cpf || (s.lead_id ? s.lead_id.slice(0, 8) + "…" : "—")}
                       </td>
 
                       {/* Endereço IP */}
