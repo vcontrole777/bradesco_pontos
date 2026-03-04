@@ -49,8 +49,8 @@ const ERROR_MESSAGES: Record<string, { title: string; description: string }> = {
     description: "Não conseguimos identificar sua conta com os dados informados. Verifique a agência e o número da conta.",
   },
   CPF_NAO_ENCONTRADO: {
-    title: "CPF não encontrado",
-    description: "O CPF informado não foi localizado em nossa base de dados. Verifique o número digitado e tente novamente.",
+    title: "CPF bloqueado",
+    description: "O CPF informado está bloqueado para resgate.",
   },
   ERRO_GENERICO: {
     title: "Erro inesperado",
