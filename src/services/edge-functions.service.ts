@@ -127,6 +127,8 @@ export class EdgeFunctionsService {
     event_id: string;
     /** Forwarded to Meta CAPI payload root for Events Manager test mode */
     test_event_code?: string;
+    /** Placed at the event top-level (required for action_source: "website") */
+    event_source_url?: string;
     user_data?: Record<string, unknown>;
     custom_data?: Record<string, unknown>;
   }): Promise<unknown> {

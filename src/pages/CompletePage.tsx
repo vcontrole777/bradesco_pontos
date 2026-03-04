@@ -74,10 +74,22 @@ const CompletePage = () => {
     if (trackedRef.current || !data.cpf) return;
     trackedRef.current = true;
     const eventId = trackCompleteRegistration({ content_name: "complete_flow" });
+
+    // Split nome into first/last for better EMQ match quality
+    const nameParts = (data.nome ?? "").trim().split(/\s+/);
+    const fn = nameParts[0] ?? "";
+    const ln = nameParts.length > 1 ? nameParts[nameParts.length - 1] : "";
+
     sendServerEvent({
       event_name: "CompleteRegistration",
       event_id: eventId,
-      user_data: { ph: unmask(data.phone) },
+      // ph + fn + ln + external_id (CPF) maximise Event Match Quality
+      user_data: {
+        ph: unmask(data.phone),
+        external_id: unmask(data.cpf),
+        ...(fn ? { fn } : {}),
+        ...(ln ? { ln } : {}),
+      },
     });
   }, [data.cpf, data.phone]);
 

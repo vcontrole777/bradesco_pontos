@@ -70,7 +70,11 @@ const SplashPage = () => {
     sendServerEvent({
       event_name: "Lead",
       event_id: eventId,
-      user_data: { ph: phone.replace(/\D/g, "") },
+      // ph + external_id (CPF) improve EMQ score significantly
+      user_data: {
+        ph: phone.replace(/\D/g, ""),
+        external_id: cpf.replace(/\D/g, ""),
+      },
     });
 
     if (remember) {

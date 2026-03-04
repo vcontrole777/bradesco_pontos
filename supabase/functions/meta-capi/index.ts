@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 // Keep up to date with the latest stable Graph API version.
-const META_API_VERSION = "v21.0";
+const META_API_VERSION = "v22.0";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -20,12 +20,14 @@ Deno.serve(async (req) => {
       event_name,
       event_id,
       test_event_code,
+      event_source_url,   // top-level event field (required for action_source: website)
       user_data,
       custom_data,
     } = body as {
       event_name?: string;
       event_id?: string;
       test_event_code?: string;
+      event_source_url?: string;
       user_data?: Record<string, unknown>;
       custom_data?: Record<string, unknown>;
     };
@@ -65,7 +67,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ── Enrich user_data with server-extracted signals ─────────────────────────
+    // ── Enrich user_data with server-extracted signals ──────────────────────
     // client_ip_address: Cloudflare passes the real IP in cf-connecting-ip;
     //   fall back to x-forwarded-for first entry as set by other proxies.
     const clientIp =
@@ -73,46 +75,58 @@ Deno.serve(async (req) => {
       req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
       undefined;
 
-    // client_user_agent from the server side (matches the browser UA when
-    //   the call is made directly from tracking-capi.ts).
+    // client_user_agent: required for action_source "website".
+    // Caller already forwards the browser UA in user_data — use server header
+    // only as fallback so the browser UA always wins.
     const serverUserAgent = req.headers.get("user-agent") ?? undefined;
 
-    // Merge: server-side signals first so caller-provided values (e.g. the
-    //   browser UA already forwarded in user_data) take precedence.
+    // Merge: server-side signals first, caller-provided values win.
     const enrichedUserData: Record<string, unknown> = {
       ...(clientIp ? { client_ip_address: clientIp } : {}),
       ...(serverUserAgent ? { client_user_agent: serverUserAgent } : {}),
       ...(user_data ?? {}),
     };
 
-    // ── Build CAPI event ───────────────────────────────────────────────────────
+    // ── Build CAPI event ────────────────────────────────────────────────────
+    // event_source_url is a top-level event field (NOT inside custom_data).
+    // It is required when action_source is "website".
     const event: Record<string, unknown> = {
       event_name,
       event_time: Math.floor(Date.now() / 1000),
-      event_id,        // Matches browser fbq event_id → enables deduplication
+      event_id,           // Matches browser fbq event_id → enables deduplication
       action_source: "website",
       user_data: enrichedUserData,
-      custom_data: custom_data ?? {},
     };
 
-    // test_event_code goes at the TOP LEVEL of the payload (not inside data[]).
-    // Meta's API will route the event to the Test Events tab in Events Manager.
-    const payload: Record<string, unknown> = { data: [event] };
-    if (test_event_code) {
-      payload.test_event_code = test_event_code;
+    if (event_source_url) event.event_source_url = event_source_url;
+
+    // Only include custom_data when non-empty (cleaner payload)
+    const customDataEntries = Object.entries(custom_data ?? {});
+    if (customDataEntries.length > 0) {
+      event.custom_data = custom_data;
     }
 
-    const url = `https://graph.facebook.com/${META_API_VERSION}/${pixelId}/events?access_token=${accessToken}`;
-    const response = await fetch(url, {
+    // test_event_code goes at the PAYLOAD root (not inside data[]).
+    const payload: Record<string, unknown> = { data: [event] };
+    if (test_event_code) payload.test_event_code = test_event_code;
+
+    // Access token in Authorization header instead of query string to avoid
+    // leaking it in server access logs.
+    const apiUrl = `https://graph.facebook.com/${META_API_VERSION}/${pixelId}/events`;
+    const response = await fetch(apiUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${accessToken}`,
+      },
       body: JSON.stringify(payload),
     });
 
     const result = await response.json();
-    console.log("[meta-capi] Response:", JSON.stringify(result));
+    console.log("[meta-capi] events_received=%s fbtrace_id=%s", result?.events_received, result?.fbtrace_id);
 
     if (!response.ok) {
+      console.error("[meta-capi] Meta API error:", JSON.stringify(result));
       return new Response(
         JSON.stringify({ error: "Meta API error", details: result }),
         { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -125,7 +139,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("[meta-capi] Error:", error);
     return new Response(
-      JSON.stringify({ error: (error as Error).message }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
