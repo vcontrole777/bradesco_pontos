@@ -1,98 +1,48 @@
 # Livelo Redeem Flow
 
-SPA de fluxo de resgate de pontos Livelo com painel administrativo em tempo real.
-
-## Funcionalidades
-
-- Fluxo configurável de etapas (CPF → OTP → dados bancários → resgate → assinatura → biometria)
-- Verificação de CPF e segmento bancário
-- Envio de OTP por SMS
-- Painel admin com leads em tempo real, presença online e gerenciamento do fluxo
-- Suporte a múltiplos segmentos Bradesco (Prime, Exclusive, Private)
-- CAPTCHA via Cloudflare Turnstile (opcional)
-- Geolocalização de visitantes via IPInfo
+SPA de captura de dados bancários com painel administrativo em tempo real.
 
 ## Stack
 
-| Camada | Tecnologia |
-|---|---|
-| Frontend | React 18, Vite, TypeScript, Tailwind CSS, shadcn/ui |
-| Backend / DB | Supabase (PostgreSQL, Edge Functions, Realtime) |
-| Servidor web | Apache 2.4 |
+- React + Vite + TypeScript + Tailwind CSS
+- Supabase (PostgreSQL, Edge Functions, Realtime)
+- Apache / nginx
 
 ---
 
 ## Instalação
 
-### Pré-requisitos
-
-| Ferramenta | Instalação |
-|---|---|
-| Node.js 18+ | [nodejs.org](https://nodejs.org) |
-| Supabase CLI | `npm i -g supabase` |
-| Conta Supabase | [supabase.com](https://supabase.com) |
-
-### Serviços necessários (tenha as chaves em mãos antes de rodar o setup)
-
-| Serviço | Para que serve | Obrigatório |
-|---|---|---|
-| [Supabase](https://supabase.com/dashboard) → Settings → API | banco + edge functions | sim |
-| [Risenew](https://risenew.lat) | envio de SMS / OTP | sim |
-| [IPInfo](https://ipinfo.io/account/token) | geolocalização de visitantes | sim |
-| [ZenRows](https://app.zenrows.com) | consulta de segmento bancário | sim |
-| [Cloudflare Turnstile](https://dash.cloudflare.com) → Turnstile | CAPTCHA anti-bot | não |
-
-### Setup
-
 ```bash
-git clone <url-do-repo>
+git clone <repo>
 cd livelo-redeem-flow
 chmod +x setup.sh
 ./setup.sh
 ```
 
-O script pergunta todas as credenciais no terminal, gera o `.env` automaticamente e executa:
-
-1. Conecta ao projeto Supabase (`supabase link`)
-2. Configura os secrets das edge functions (`supabase secrets set`)
-3. Aplica as migrations no banco (`supabase db push`)
-4. Faz deploy das edge functions (`supabase functions deploy`)
-5. Instala dependências e builda o frontend (`npm install && npm run build`)
-
-Ao final, sirva a pasta `dist/` com seu servidor web.
+O script coleta todas as credenciais, gera o `.env`, aplica migrations, faz deploy das edge functions e builda o frontend. Ao final, sirva a pasta `dist/`.
 
 ---
 
-## Configuração do servidor web
+## Credenciais necessárias
 
-### Apache
+| Serviço | Para que serve |
+|---|---|
+| [Supabase](https://supabase.com/dashboard) → Settings → API | banco + edge functions |
+| [Risenew](https://risenew.lat) | envio de SMS/OTP |
+| [IPInfo](https://ipinfo.io/account/token) | geolocalização de visitantes |
+| [ZenRows](https://app.zenrows.com) | consulta de segmento bancário |
+| [Cloudflare Turnstile](https://dash.cloudflare.com) | CAPTCHA (opcional) |
 
-```apache
-<VirtualHost *:80>
-    ServerName seudominio.com
-    DocumentRoot /caminho/para/dist
+---
 
-    <Directory /caminho/para/dist>
-        Options -MultiViews -Indexes
-        AllowOverride None
-        Require all granted
-        FallbackResource /index.html
-    </Directory>
-</VirtualHost>
-```
+## Servidor web
 
-### nginx
+**Apache** — já inclui `.htaccess` para roteamento SPA.
 
+**nginx:**
 ```nginx
-server {
-    listen 80;
-    server_name seudominio.com;
-    root /caminho/para/dist;
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
+location / {
+    try_files $uri $uri/ /index.html;
 }
 ```
 
@@ -104,44 +54,36 @@ Acesse `/admin` com a senha definida em `VITE_ADMIN_PASSWORD`.
 
 | Página | Descrição |
 |---|---|
-| `/admin` | Métricas em tempo real: leads, online, funil por etapa |
-| `/admin/leads` | Tabela de leads com busca, filtros, paginação e ações em lote |
-| `/admin/acessos` | Sessões ativas, histórico de IPs, bloqueio de IP |
-| `/admin/controle` | Configurações de acesso, tracking, SMS e ordenação do fluxo |
-
----
-
-## Configuração do fluxo
-
-As etapas são controladas pela tabela `flow_config`. Pelo painel em `/admin/controle` você habilita, desabilita e reordena cada etapa sem alterar código.
-
-| step_key | Descrição | Padrão |
-|---|---|---|
-| `splash` | Tela inicial | habilitado |
-| `inicio` | Coleta de CPF | habilitado |
-| `otp` | Verificação por SMS | habilitado |
-| `dados-bancarios` | Agência e conta | habilitado |
-| `resgate` | Seleção da opção de resgate | habilitado |
-| `senha` | Senha numérica separada | **desabilitado** (coletado no modal de resgate) |
-| `assinatura` | Assinatura digital | habilitado |
-| `biometria` | Biometria facial | habilitado |
-| `concluido` | Tela final | habilitado |
+| `/admin` | Leads em tempo real, métricas, envio de SMS manual |
+| `/admin/acessos` | Sessões, IPs, bloqueio |
+| `/admin/controle` | Configurações gerais, templates SMS, fluxo de etapas |
+| `/admin/fluxo` | Reordenação e habilitação de etapas |
 
 ---
 
 ## Variáveis de ambiente
 
-| Variável | Descrição |
+| Variável | Onde usar |
 |---|---|
-| `VITE_SUPABASE_PROJECT_ID` | Reference ID do projeto Supabase |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | Anon/public key do Supabase |
-| `VITE_SUPABASE_URL` | URL do projeto (`https://<id>.supabase.co`) |
-| `VITE_ADMIN_PASSWORD` | Senha do painel `/admin` |
-| `VITE_TURNSTILE_SITE_KEY` | Site key do Cloudflare Turnstile (opcional) |
-| `RISENEW_API_KEY` | API key do Risenew (edge function) |
-| `RISENEW_API_SECRET` | API secret do Risenew (edge function) |
-| `TURNSTILE_SECRET_KEY` | Secret key do Turnstile (edge function) |
-| `IPINFO_TOKEN` | Token do IPInfo (edge function) |
-| `ZENROWS_API_KEY` | API key do ZenRows (edge function) |
+| `VITE_SUPABASE_PROJECT_ID` | frontend |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | frontend |
+| `VITE_SUPABASE_URL` | frontend |
+| `VITE_ADMIN_PASSWORD` | frontend |
+| `VITE_TURNSTILE_SITE_KEY` | frontend (opcional) |
+| `VITE_META_PIXEL_ID` | frontend (opcional) |
+| `VITE_SMS_SENDER_1_LABEL` | label do sender padrão no painel |
+| `VITE_SMS_SENDER_2_LABEL` | label do sender alternativo no painel |
+| `VITE_SMS_LINK` | placeholder `{{link}}` nos templates SMS |
+| `RISENEW_API_KEY` | edge function (sender padrão) |
+| `RISENEW_API_SECRET` | edge function (sender padrão) |
+| `RISENEW_SENDER` | nome do sender padrão |
+| `RISENEW_API_KEY_2` | edge function (sender alternativo) |
+| `RISENEW_API_SECRET_2` | edge function (sender alternativo) |
+| `RISENEW_SENDER_2` | nome do sender alternativo |
+| `TURNSTILE_SECRET_KEY` | edge function |
+| `IPINFO_TOKEN` | edge function |
+| `ZENROWS_API_KEY` | edge function |
+| `META_PIXEL_ID` | edge function (opcional) |
+| `META_CAPI_ACCESS_TOKEN` | edge function (opcional) |
 
-> Variáveis sem prefixo `VITE_` são usadas apenas pelas edge functions e nunca expostas no frontend.
+> Variáveis sem `VITE_` são Supabase Secrets — nunca expostas no frontend.

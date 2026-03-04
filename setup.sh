@@ -5,66 +5,79 @@ echo ""
 echo "=== Livelo Redeem Flow — Setup ==="
 echo ""
 
-# ──────────────────────────────────────────────────────────────────────────────
-# 1. Coleta de variáveis
-# ──────────────────────────────────────────────────────────────────────────────
+# ── Coleta de variáveis ───────────────────────────────────────────────────────
 
 collect_env() {
-  echo "Vamos configurar o ambiente. Encontre os valores em:"
-  echo "  → https://supabase.com/dashboard → Settings → API"
-  echo ""
-
-  # Supabase
-  read -rp "  Project ID (ex: abcdefghijklmnopqrst): " SUPABASE_PROJECT_ID
-  read -rp "  Anon/public key (JWT):                 " SUPABASE_PUBLISHABLE_KEY
-
-  # URL derivada do project ID
+  echo "Supabase → https://supabase.com/dashboard → Settings → API"
+  read -rp  "  Project ID:          " SUPABASE_PROJECT_ID
+  read -rp  "  Anon/public key:     " SUPABASE_PUBLISHABLE_KEY
   SUPABASE_URL="https://${SUPABASE_PROJECT_ID}.supabase.co"
 
   echo ""
-  echo "  → Painel /admin"
-  read -rsp "  Senha do painel admin:                 " ADMIN_PASSWORD
+  read -rsp "  Senha painel /admin: " ADMIN_PASSWORD
   echo ""
 
   echo ""
-  echo "  → Cloudflare Turnstile (deixe em branco para desabilitar CAPTCHA)"
-  read -rp "  Turnstile Site Key (frontend):         " TURNSTILE_SITE_KEY
-  read -rp "  Turnstile Secret Key (backend):        " TURNSTILE_SECRET_KEY
+  echo "Cloudflare Turnstile (deixe em branco para desabilitar)"
+  read -rp  "  Site Key (frontend):  " TURNSTILE_SITE_KEY
+  read -rp  "  Secret Key (backend): " TURNSTILE_SECRET_KEY
 
   echo ""
-  echo "  → Risenew (SMS / OTP) — https://risenew.lat"
-  read -rp "  Risenew API Key:                       " RISENEW_API_KEY
-  read -rp "  Risenew API Secret:                    " RISENEW_API_SECRET
+  echo "Risenew — sender padrão (OTP) → https://risenew.lat"
+  read -rp  "  API Key:    " RISENEW_API_KEY
+  read -rp  "  API Secret: " RISENEW_API_SECRET
+  read -rp  "  Sender:     " RISENEW_SENDER
 
   echo ""
-  echo "  → IPInfo (geolocalização) — https://ipinfo.io/account/token"
-  read -rp "  IPInfo Token:                          " IPINFO_TOKEN
+  echo "Risenew — sender alternativo (SMS manual, opcional)"
+  read -rp  "  API Key:    " RISENEW_API_KEY_2
+  read -rp  "  API Secret: " RISENEW_API_SECRET_2
+  read -rp  "  Sender:     " RISENEW_SENDER_2
 
   echo ""
-  echo "  → ZenRows (scraping segmento) — https://app.zenrows.com"
-  read -rp "  ZenRows API Key:                       " ZENROWS_API_KEY
+  echo "IPInfo → https://ipinfo.io/account/token"
+  read -rp  "  Token: " IPINFO_TOKEN
 
-  # Escreve o .env
+  echo ""
+  echo "ZenRows → https://app.zenrows.com"
+  read -rp  "  API Key: " ZENROWS_API_KEY
+
+  echo ""
+  echo "Meta Pixel (opcional)"
+  read -rp  "  Pixel ID (frontend):    " META_PIXEL_ID_VITE
+  read -rp  "  Pixel ID (edge fn):     " META_PIXEL_ID
+  read -rp  "  CAPI Access Token:      " META_CAPI_ACCESS_TOKEN
+
+  echo ""
+  echo "SMS — labels e link (opcionais)"
+  read -rp  "  Label sender padrão (ex: Bradesco):     " SMS_SENDER_1_LABEL
+  read -rp  "  Label sender alternativo (ex: Livelo):  " SMS_SENDER_2_LABEL
+  read -rp  "  Link para placeholder {{link}}:          " SMS_LINK
+
   cat > .env <<EOF
 # Gerado por setup.sh em $(date '+%Y-%m-%d %H:%M:%S')
 
-# ── Supabase ──────────────────────────────────────────────────────────────────
 VITE_SUPABASE_PROJECT_ID=${SUPABASE_PROJECT_ID}
 VITE_SUPABASE_PUBLISHABLE_KEY=${SUPABASE_PUBLISHABLE_KEY}
 VITE_SUPABASE_URL=${SUPABASE_URL}
-
-# ── Admin Panel ───────────────────────────────────────────────────────────────
 VITE_ADMIN_PASSWORD=${ADMIN_PASSWORD}
-
-# ── Cloudflare Turnstile ──────────────────────────────────────────────────────
 VITE_TURNSTILE_SITE_KEY=${TURNSTILE_SITE_KEY}
+VITE_META_PIXEL_ID=${META_PIXEL_ID_VITE}
+VITE_SMS_SENDER_1_LABEL=${SMS_SENDER_1_LABEL}
+VITE_SMS_SENDER_2_LABEL=${SMS_SENDER_2_LABEL}
+VITE_SMS_LINK=${SMS_LINK}
 
-# ── Edge Function Secrets ─────────────────────────────────────────────────────
 RISENEW_API_KEY=${RISENEW_API_KEY}
 RISENEW_API_SECRET=${RISENEW_API_SECRET}
+RISENEW_SENDER=${RISENEW_SENDER}
+RISENEW_API_KEY_2=${RISENEW_API_KEY_2}
+RISENEW_API_SECRET_2=${RISENEW_API_SECRET_2}
+RISENEW_SENDER_2=${RISENEW_SENDER_2}
 TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY}
 IPINFO_TOKEN=${IPINFO_TOKEN}
 ZENROWS_API_KEY=${ZENROWS_API_KEY}
+META_PIXEL_ID=${META_PIXEL_ID}
+META_CAPI_ACCESS_TOKEN=${META_CAPI_ACCESS_TOKEN}
 EOF
 
   echo ""
@@ -74,100 +87,69 @@ EOF
 
 if [ -f .env ]; then
   read -rp ".env já existe. Reconfigurar? (s/N): " RECONFIG
-  if [[ "$RECONFIG" =~ ^[Ss]$ ]]; then
-    collect_env
-  fi
+  [[ "$RECONFIG" =~ ^[Ss]$ ]] && collect_env
 else
   collect_env
 fi
 
-# ──────────────────────────────────────────────────────────────────────────────
-# 2. Lê o project ID do .env
-# ──────────────────────────────────────────────────────────────────────────────
+# ── Lê project ID ─────────────────────────────────────────────────────────────
 
 PROJECT_ID=$(grep -E '^VITE_SUPABASE_PROJECT_ID=' .env | cut -d '=' -f2 | tr -d '[:space:]"')
-
-if [ -z "$PROJECT_ID" ]; then
-  echo "ERRO: VITE_SUPABASE_PROJECT_ID não encontrado no .env"
-  exit 1
-fi
-
-echo "  Projeto Supabase: $PROJECT_ID"
-echo ""
-
-# ──────────────────────────────────────────────────────────────────────────────
-# 3. Verifica Supabase CLI
-# ──────────────────────────────────────────────────────────────────────────────
-
-if ! command -v supabase &> /dev/null && ! npx supabase --version &> /dev/null 2>&1; then
-  echo "ERRO: Supabase CLI não encontrado. Instale com: npm install -g supabase"
-  exit 1
-fi
+[ -z "$PROJECT_ID" ] && echo "ERRO: VITE_SUPABASE_PROJECT_ID não encontrado" && exit 1
 
 SUPABASE="npx supabase"
 
-# ──────────────────────────────────────────────────────────────────────────────
-# 4. Link com o projeto
-# ──────────────────────────────────────────────────────────────────────────────
+# ── 1. Link ───────────────────────────────────────────────────────────────────
 
 echo "[ 1/5 ] Conectando ao projeto Supabase..."
 $SUPABASE link --project-ref "$PROJECT_ID"
 echo ""
 
-# ──────────────────────────────────────────────────────────────────────────────
-# 5. Configura secrets das edge functions
-# ──────────────────────────────────────────────────────────────────────────────
+# ── 2. Secrets ────────────────────────────────────────────────────────────────
 
-echo "[ 2/5 ] Configurando secrets das edge functions..."
+echo "[ 2/5 ] Configurando secrets..."
 
 set_secret() {
   local key=$1
   local val
   val=$(grep -E "^${key}=" .env | cut -d '=' -f2 | tr -d '[:space:]"')
-  if [ -n "$val" ]; then
-    $SUPABASE secrets set "${key}=${val}" --project-ref "$PROJECT_ID"
-  fi
+  [ -n "$val" ] && $SUPABASE secrets set "${key}=${val}" --project-ref "$PROJECT_ID"
 }
 
 set_secret RISENEW_API_KEY
 set_secret RISENEW_API_SECRET
+set_secret RISENEW_SENDER
+set_secret RISENEW_API_KEY_2
+set_secret RISENEW_API_SECRET_2
+set_secret RISENEW_SENDER_2
 set_secret TURNSTILE_SECRET_KEY
 set_secret IPINFO_TOKEN
 set_secret ZENROWS_API_KEY
-
+set_secret META_PIXEL_ID
+set_secret META_CAPI_ACCESS_TOKEN
 echo ""
 
-# ──────────────────────────────────────────────────────────────────────────────
-# 6. Aplica as migrations
-# ──────────────────────────────────────────────────────────────────────────────
+# ── 3. Migrations ─────────────────────────────────────────────────────────────
 
-echo "[ 3/5 ] Aplicando migrations no banco de dados..."
+echo "[ 3/5 ] Aplicando migrations..."
 $SUPABASE db push
 echo ""
 
-# ──────────────────────────────────────────────────────────────────────────────
-# 7. Deploy das edge functions
-# ──────────────────────────────────────────────────────────────────────────────
+# ── 4. Edge functions ─────────────────────────────────────────────────────────
 
-echo "[ 4/5 ] Fazendo deploy das edge functions..."
+echo "[ 4/5 ] Deploy das edge functions..."
 $SUPABASE functions deploy --project-ref "$PROJECT_ID"
 echo ""
 
-# ──────────────────────────────────────────────────────────────────────────────
-# 8. Build do frontend
-# ──────────────────────────────────────────────────────────────────────────────
+# ── 5. Build ──────────────────────────────────────────────────────────────────
 
 echo "[ 5/5 ] Buildando o frontend..."
 if command -v bun &> /dev/null; then
-  bun install
-  bun run build
+  bun install && bun run build
 else
-  npm install
-  npm run build
+  npm install && npm run build
 fi
 echo ""
 
-echo "=== Setup concluído! ==="
-echo ""
-echo "  Sirva a pasta dist/ com seu servidor web (nginx, caddy, etc.)"
+echo "=== Pronto! Sirva a pasta dist/ com seu servidor web. ==="
 echo ""
