@@ -166,7 +166,7 @@ export default function AdminAccessPage() {
   };
 
   const handleClearAll = async () => {
-    const { count } = await sessionRepository.deleteWithoutLead();
+    const { count } = await sessionRepository.deleteWithoutCpf();
     toast.success(count > 0 ? `${count} acesso(s) sem CPF removido(s)` : "Nenhum acesso sem CPF encontrado");
     fetchSessions();
   };

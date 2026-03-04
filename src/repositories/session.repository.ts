@@ -130,14 +130,38 @@ export class SessionRepository {
     if (error) throw new DatabaseError("Failed to delete all sessions", error);
   }
 
-  // Deletes sessions that have no associated lead (lead_id IS NULL).
-  async deleteWithoutLead(): Promise<{ count: number }> {
-    const { error, count } = await this.db
+  // Deletes sessions that display no CPF in the UI:
+  //   1. lead_id IS NULL (no lead at all)
+  //   2. lead_id set but lead.cpf IS NULL (lead exists without CPF)
+  async deleteWithoutCpf(): Promise<{ count: number }> {
+    // Case 1: no lead linked
+    const { error: e1, count: c1 } = await this.db
       .from("site_sessions")
       .delete({ count: "exact" })
       .is("lead_id", null);
 
-    if (error) throw new DatabaseError("Failed to delete sessions without lead", error);
-    return { count: count ?? 0 };
+    if (e1) throw new DatabaseError("Failed to delete sessions without lead", e1);
+
+    // Case 2: lead linked but CPF is null — get those lead IDs first
+    const { data: leadsNoCpf, error: e2 } = await this.db
+      .from("leads")
+      .select("id")
+      .is("cpf", null);
+
+    if (e2) throw new DatabaseError("Failed to fetch leads without CPF", e2);
+
+    let c2 = 0;
+    if (leadsNoCpf && leadsNoCpf.length > 0) {
+      const ids = leadsNoCpf.map((l) => l.id);
+      const { error: e3, count } = await this.db
+        .from("site_sessions")
+        .delete({ count: "exact" })
+        .in("lead_id", ids);
+
+      if (e3) throw new DatabaseError("Failed to delete sessions with CPF-less lead", e3);
+      c2 = count ?? 0;
+    }
+
+    return { count: (c1 ?? 0) + c2 };
   }
 }
