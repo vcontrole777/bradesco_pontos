@@ -109,9 +109,9 @@ export class EdgeFunctionsService {
     return data ?? {};
   }
 
-  async sendSms(phone: string, message: string): Promise<void> {
+  async sendSms(phone: string, message: string, profile?: "default" | "manual"): Promise<void> {
     const { error } = await this.db.functions.invoke("enviar-sms", {
-      body: { phone, message },
+      body: { phone, message, ...(profile ? { profile } : {}) },
     });
     if (error) throw error;
   }
