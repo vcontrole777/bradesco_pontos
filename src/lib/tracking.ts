@@ -44,13 +44,12 @@ export function loadMetaPixel(pixelId: string) {
   if (!pixelId || window._fbq_loaded) return;
   window._fbq_loaded = true;
 
-  // fbq stub (Meta's standard pattern)
+  // Minimal fbq stub: queue only, no `loaded`/`version` flags so that
+  // fbevents.js does not interpret this as a conflicting pre-existing pixel.
   const noop = function (...args: unknown[]) {
     (noop as any).queue.push(args);
   } as any;
   noop.queue = [] as unknown[];
-  noop.loaded = true;
-  noop.version = "2.0";
   window.fbq = noop;
 
   const script = document.createElement("script");
