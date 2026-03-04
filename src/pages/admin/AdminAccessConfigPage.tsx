@@ -682,12 +682,6 @@ export default function AdminAccessConfigPage() {
         <TabsContent value="tracking" className="space-y-3 mt-4">
           <CollapsibleSection icon={BarChart3} title="Meta Pixel + CAPI" badge={<StatusBadge active label="Via Secrets" />} defaultOpen>
             <div className="p-4 space-y-4">
-              {/* Secrets info */}
-              <div className="rounded-lg bg-muted/50 border border-border px-3 py-2.5 text-[11px] text-muted-foreground space-y-1">
-                <p><strong className="text-foreground">VITE_META_PIXEL_ID</strong> — Pixel ID (frontend, build-time).</p>
-                <p><strong className="text-foreground">META_PIXEL_ID</strong> e <strong className="text-foreground">META_CAPI_ACCESS_TOKEN</strong> — Secrets da edge function <code className="bg-muted px-1 rounded font-mono text-[11px] text-foreground">meta-capi</code>.</p>
-                <p className="mt-1">Configure via <code className="bg-muted px-1 rounded font-mono text-[11px] text-foreground">supabase secrets set META_PIXEL_ID=... META_CAPI_ACCESS_TOKEN=...</code> ou no painel <strong className="text-foreground">Supabase → Edge Functions → Secrets</strong>.</p>
-              </div>
 
               {/* Divider */}
               <div className="border-t border-border pt-3 space-y-3">
