@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { leadRepository, sessionRepository, configRepository } from "@/repositories";
-import { Users, Wifi, CheckCircle, Clock, MousePointerClick, ShieldBan } from "lucide-react";
+import { Wifi, MousePointerClick, ShieldBan, FileText } from "lucide-react";
 
 interface Stats {
   totalLeads: number;
@@ -20,6 +20,7 @@ interface StatCard {
   iconClass: string;
   accentClass: string;
   pulse?: boolean;
+  sub?: { label: string; value: number; color: string }[];
 }
 
 const STEP_LABELS: Record<string, string> = {
@@ -94,19 +95,46 @@ export default function AdminDashboard() {
   }, []);
 
   const cards: StatCard[] = [
-    { label: "Total de Leads", value: stats.totalLeads, icon: Users, iconClass: "text-primary", accentClass: "border-primary" },
-    { label: "Online Agora", value: stats.onlineNow, icon: Wifi, iconClass: "text-secondary", accentClass: "border-secondary", pulse: true },
-    { label: "Total de Cliques", value: stats.totalSessions, icon: MousePointerClick, iconClass: "text-blue-400", accentClass: "border-blue-400" },
-    { label: "Bloqueados", value: stats.totalBlocked, icon: ShieldBan, iconClass: "text-destructive", accentClass: "border-destructive" },
-    { label: "Concluídos", value: stats.completed, icon: CheckCircle, iconClass: "text-emerald-400", accentClass: "border-emerald-400" },
-    { label: "Em Andamento", value: stats.inProgress, icon: Clock, iconClass: "text-orange-400", accentClass: "border-orange-400" },
+    {
+      label: "Visitantes Online",
+      value: stats.onlineNow,
+      icon: Wifi,
+      iconClass: "text-emerald-400",
+      accentClass: "border-emerald-400",
+      pulse: true,
+    },
+    {
+      label: "Total de Acessos",
+      value: stats.totalSessions,
+      icon: MousePointerClick,
+      iconClass: "text-blue-400",
+      accentClass: "border-blue-400",
+    },
+    {
+      label: "Acessos Bloqueados",
+      value: stats.totalBlocked,
+      icon: ShieldBan,
+      iconClass: "text-destructive",
+      accentClass: "border-destructive",
+    },
+    {
+      label: "Total de Fichas",
+      value: stats.totalLeads,
+      icon: FileText,
+      iconClass: "text-primary",
+      accentClass: "border-primary",
+      sub: [
+        { label: "Completas", value: stats.completed, color: "text-emerald-400" },
+        { label: "Incompletas", value: stats.inProgress, color: "text-orange-400" },
+      ],
+    },
   ];
 
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-bold text-foreground font-mono tracking-tight">// Dashboard</h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((c) => (
           <div
             key={c.label}
@@ -118,14 +146,24 @@ export default function AdminDashboard() {
               </span>
               {c.pulse ? (
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-secondary" />
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
                 </span>
               ) : (
                 <c.icon className={`h-4 w-4 ${c.iconClass}`} />
               )}
             </div>
             <p className="text-3xl font-bold text-foreground font-mono tracking-tight">{c.value}</p>
+            {c.sub && (
+              <div className="flex gap-3 mt-2">
+                {c.sub.map((s) => (
+                  <span key={s.label} className="text-[11px] font-mono">
+                    <span className={`font-bold ${s.color}`}>{s.value}</span>
+                    <span className="text-muted-foreground ml-1">{s.label}</span>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>
