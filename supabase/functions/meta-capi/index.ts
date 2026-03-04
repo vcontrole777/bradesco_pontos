@@ -1,5 +1,3 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -39,31 +37,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fetch Pixel ID and Access Token from config table
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const sb = createClient(supabaseUrl, supabaseKey);
-
-    const { data: configs } = await sb
-      .from("access_config")
-      .select("config_key, config_value")
-      .in("config_key", ["tracking_meta_pixel", "tracking_meta_access_token"]);
-
-    let pixelId = "";
-    let accessToken = "";
-
-    if (configs) {
-      for (const row of configs) {
-        const val = row.config_value as string;
-        if (row.config_key === "tracking_meta_pixel") pixelId = val;
-        if (row.config_key === "tracking_meta_access_token") accessToken = val;
-      }
-    }
+    // Read credentials from Supabase Secrets (env vars) — never stored in the DB.
+    const pixelId = Deno.env.get("META_PIXEL_ID") ?? "";
+    const accessToken = Deno.env.get("META_CAPI_ACCESS_TOKEN") ?? "";
 
     if (!pixelId || !accessToken) {
       return new Response(
-        JSON.stringify({ error: "Meta Pixel ID or Access Token not configured" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        JSON.stringify({ error: "META_PIXEL_ID or META_CAPI_ACCESS_TOKEN secret not set" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 

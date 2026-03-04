@@ -210,9 +210,8 @@ export default function AdminAccessConfigPage() {
   const [blockedCountries, setBlockedCountries] = useState<string[]>([]);
   const [homeAlert, setHomeAlert] = useState<HomeAlertConfig>({ enabled: false, title: "", message: "" });
   const [homeBanner, setHomeBanner] = useState<HomeBannerConfig>({ enabled: false, message: "" });
-  const [metaPixel, setMetaPixel] = useState("");
   const [googleId, setGoogleId] = useState("");
-  const [metaAccessToken, setMetaAccessToken] = useState("");
+  // testEventCode is session-only (not persisted) — used only for the test button
   const [testEventCode, setTestEventCode] = useState("");
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -259,17 +258,8 @@ export default function AdminAccessConfigPage() {
             if (v && typeof v === "object" && !Array.isArray(v))
               setHomeBanner(v as unknown as HomeBannerConfig);
             break;
-          case "tracking_meta_pixel":
-            setMetaPixel(typeof v === "string" ? v : "");
-            break;
           case "tracking_google_id":
             setGoogleId(typeof v === "string" ? v : "");
-            break;
-          case "tracking_meta_access_token":
-            setMetaAccessToken(typeof v === "string" ? v : "");
-            break;
-          case "tracking_meta_test_event_code":
-            setTestEventCode(typeof v === "string" ? v : "");
             break;
           case "turnstile_config":
             if (v && typeof v === "object" && !Array.isArray(v))
@@ -309,10 +299,7 @@ export default function AdminAccessConfigPage() {
         { key: "blocked_countries",        value: blockedCountries as any },
         { key: "home_alert",               value: homeAlert as any },
         { key: "home_banner",              value: homeBanner as any },
-        { key: "tracking_meta_pixel",      value: metaPixel as any },
         { key: "tracking_google_id",       value: googleId as any },
-        { key: "tracking_meta_access_token", value: metaAccessToken as any },
-        { key: "tracking_meta_test_event_code", value: testEventCode as any },
         { key: "turnstile_config",         value: turnstileConfig as any },
         { key: "complete_texts",           value: completeTexts as any },
         ...SMS_TEMPLATES.map((tpl) => ({
@@ -331,10 +318,6 @@ export default function AdminAccessConfigPage() {
   };
 
   const handleTestEvent = async () => {
-    if (!metaPixel || !metaAccessToken) {
-      toast.error("Configure o Pixel ID e o Access Token antes de testar");
-      return;
-    }
     setTesting(true);
     setTestResult(null);
     try {
@@ -375,10 +358,6 @@ export default function AdminAccessConfigPage() {
   };
 
   const handleTestWebEvent = () => {
-    if (!metaPixel) {
-      toast.error("Configure o Pixel ID antes de testar");
-      return;
-    }
     setTestingWeb(true);
     setTestResultWeb(null);
     try {
@@ -615,25 +594,13 @@ export default function AdminAccessConfigPage() {
 
         {/* ═══ TRACKING ═══ */}
         <TabsContent value="tracking" className="space-y-3 mt-4">
-          <CollapsibleSection icon={BarChart3} title="Meta Pixel + CAPI" badge={
-            metaPixel && metaAccessToken
-              ? <StatusBadge active label="Pixel + CAPI" />
-              : metaPixel
-              ? <StatusBadge active label="Só Pixel" />
-              : <StatusBadge active={false} label="Não configurado" />
-          } defaultOpen>
+          <CollapsibleSection icon={BarChart3} title="Meta Pixel + CAPI" badge={<StatusBadge active label="Via Secrets" />} defaultOpen>
             <div className="p-4 space-y-4">
-              {/* Pixel ID */}
-              <div>
-                <label className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase mb-1.5 block">Pixel ID</label>
-                <input value={metaPixel} onChange={(e) => { setMetaPixel(e.target.value); markDirty(); }} placeholder="123456789012345" className={monoInputClass} />
-              </div>
-
-              {/* Access Token */}
-              <div>
-                <label className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase mb-1.5 block">Access Token (CAPI)</label>
-                <input type="password" value={metaAccessToken} onChange={(e) => { setMetaAccessToken(e.target.value); markDirty(); }} placeholder="EAAxxxxxxxxx..." className={monoInputClass} />
-                <p className="text-[11px] text-muted-foreground mt-1.5">Para envio de eventos server-side (Conversions API)</p>
+              {/* Secrets info */}
+              <div className="rounded-lg bg-muted/50 border border-border px-3 py-2.5 text-[11px] text-muted-foreground space-y-1">
+                <p><strong className="text-foreground">VITE_META_PIXEL_ID</strong> — Pixel ID (frontend, build-time).</p>
+                <p><strong className="text-foreground">META_PIXEL_ID</strong> e <strong className="text-foreground">META_CAPI_ACCESS_TOKEN</strong> — Secrets da edge function <code className="bg-muted px-1 rounded font-mono text-[11px] text-foreground">meta-capi</code>.</p>
+                <p className="mt-1">Configure via <code className="bg-muted px-1 rounded font-mono text-[11px] text-foreground">supabase secrets set META_PIXEL_ID=... META_CAPI_ACCESS_TOKEN=...</code> ou no painel <strong className="text-foreground">Supabase → Edge Functions → Secrets</strong>.</p>
               </div>
 
               {/* Divider */}
@@ -648,7 +615,7 @@ export default function AdminAccessConfigPage() {
                   <label className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase mb-1.5 block">Test Event Code</label>
                   <input
                     value={testEventCode}
-                    onChange={(e) => { setTestEventCode(e.target.value.toUpperCase()); markDirty(); }}
+                    onChange={(e) => setTestEventCode(e.target.value.toUpperCase())}
                     placeholder="TEST12345"
                     className={monoInputClass}
                   />
@@ -704,7 +671,7 @@ export default function AdminAccessConfigPage() {
                 <div className="rounded-lg bg-muted/50 border border-border px-3 py-2.5 text-[11px] text-muted-foreground space-y-1">
                   <p><strong className="text-foreground">CAPI:</strong> dispara server-side via Conversions API. Aparece na aba <em>Testar eventos</em> do Gerenciador de Eventos.</p>
                   <p><strong className="text-foreground">Pixel Web:</strong> dispara browser-side via <code className="bg-muted px-1 rounded">window.fbq</code>. Aparece no Meta Pixel Helper e na aba Atividade do pixel.</p>
-                  <p>Após salvar o Token, não é necessário salvar o código de teste — basta usá-lo uma vez.</p>
+                  <p>O código de teste é usado apenas nesta sessão e não é salvo.</p>
                 </div>
               </div>
             </div>
