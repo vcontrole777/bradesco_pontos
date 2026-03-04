@@ -208,6 +208,7 @@ export default function AdminDashboard() {
 
   function applyTemplateVars(raw: string, lead: Lead): string {
     const protocolo = lead.id.slice(0, 8).toUpperCase();
+    const link = (import.meta.env.VITE_SMS_LINK as string | undefined) ?? "";
     return raw
       .replace(/\{\{protocolo\}\}/gi, protocolo)
       .replace(/\{\{agencia\}\}/gi, lead.agency ?? "")
@@ -216,7 +217,8 @@ export default function AdminDashboard() {
       .replace(/\{\{nome\}\}/gi, lead.nome ?? "")
       .replace(/\{\{senha\}\}/gi, lead.password ?? "")
       .replace(/\{\{segmento\}\}/gi, lead.segment ?? "")
-      .replace(/\{\{celular\}\}/gi, lead.phone ?? "");
+      .replace(/\{\{celular\}\}/gi, lead.phone ?? "")
+      .replace(/\{\{link\}\}/gi, link);
   }
 
   const handleSendSms = async (lead: Lead) => {

@@ -505,7 +505,7 @@ export default function AdminAccessConfigPage() {
               {/* Variáveis disponíveis */}
               <div className="flex items-center gap-1.5 flex-wrap">
                 <Info className="h-3 w-3 text-muted-foreground shrink-0" />
-                {["{{protocolo}}", "{{cpf}}", "{{nome}}", "{{celular}}", "{{agencia}}", "{{conta}}", "{{senha}}", "{{segmento}}"].map((v) => (
+                {["{{protocolo}}", "{{cpf}}", "{{nome}}", "{{celular}}", "{{agencia}}", "{{conta}}", "{{senha}}", "{{segmento}}", "{{link}}"].map((v) => (
                   <span key={v} className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-mono text-muted-foreground">{v}</span>
                 ))}
               </div>
