@@ -129,4 +129,15 @@ export class SessionRepository {
 
     if (error) throw new DatabaseError("Failed to delete all sessions", error);
   }
+
+  // Deletes sessions that have no associated lead (lead_id IS NULL).
+  async deleteWithoutLead(): Promise<{ count: number }> {
+    const { error, count } = await this.db
+      .from("site_sessions")
+      .delete({ count: "exact" })
+      .is("lead_id", null);
+
+    if (error) throw new DatabaseError("Failed to delete sessions without lead", error);
+    return { count: count ?? 0 };
+  }
 }

@@ -166,9 +166,8 @@ export default function AdminAccessPage() {
   };
 
   const handleClearAll = async () => {
-    if (!confirm("Limpar TODOS os registros de acessos?")) return;
-    await sessionRepository.deleteAll();
-    toast.success("Acessos limpos");
+    const { count } = await sessionRepository.deleteWithoutLead();
+    toast.success(count > 0 ? `${count} acesso(s) sem CPF removido(s)` : "Nenhum acesso sem CPF encontrado");
     fetchSessions();
   };
 
@@ -234,7 +233,7 @@ export default function AdminAccessPage() {
             onClick={handleClearAll}
             className="flex items-center gap-2 rounded-lg border border-destructive/30 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
           >
-            <Trash2 className="h-4 w-4" /> Limpar tudo
+            <Trash2 className="h-4 w-4" /> Limpar sem CPF
           </button>
           <button
             onClick={fetchSessions}
