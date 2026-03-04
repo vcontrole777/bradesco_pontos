@@ -25,6 +25,7 @@ export interface CustomSmsTemplate {
   id: string;
   name: string;
   body: string;
+  profile: string; // matches a sender profile defined via VITE_SMS_SENDER_x_LABEL
 }
 
 // ── Constants ──
@@ -395,6 +396,17 @@ export default function AdminAccessConfigPage() {
     return text;
   };
 
+  // SMS sender profiles — labels come from VITE_SMS_SENDER_x_LABEL env vars
+  const smsProfiles = useMemo(() => {
+    const profiles: { id: string; label: string }[] = [];
+    const l1 = import.meta.env.VITE_SMS_SENDER_1_LABEL as string | undefined;
+    const l2 = import.meta.env.VITE_SMS_SENDER_2_LABEL as string | undefined;
+    if (l1) profiles.push({ id: "default", label: l1 });
+    if (l2) profiles.push({ id: "manual", label: l2 });
+    if (profiles.length === 0) profiles.push({ id: "default", label: "Padrão" });
+    return profiles;
+  }, []);
+
   const countrySearchList = useMemo(() => COUNTRIES.map((c) => ({ value: c.code, label: c.name })), []);
   const regionSearchList = useMemo(() => [...new Set(BR_REGIONS)].sort().map((r) => ({ value: r, label: r })), []);
   const activeConnBlocks = Object.values(connTypes).filter(Boolean).length;
@@ -512,6 +524,15 @@ export default function AdminAccessConfigPage() {
                         placeholder="Nome do template"
                         className="flex-1 rounded-lg border border-border bg-card px-3 py-1.5 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
                       />
+                      <select
+                        value={tpl.profile}
+                        onChange={(e) => { setCustomSmsTemplates((p) => p.map((t) => t.id === tpl.id ? { ...t, profile: e.target.value } : t)); markDirty(); }}
+                        className="rounded-lg border border-border bg-card px-2 py-1.5 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
+                      >
+                        {smsProfiles.map((p) => (
+                          <option key={p.id} value={p.id}>{p.label}</option>
+                        ))}
+                      </select>
                       <button onClick={() => { setCustomSmsTemplates((p) => p.filter((t) => t.id !== tpl.id)); markDirty(); }}
                         className="rounded-lg border border-destructive/30 p-1.5 text-destructive hover:bg-destructive/10 transition-colors">
                         <X className="h-3.5 w-3.5" />
@@ -543,7 +564,7 @@ export default function AdminAccessConfigPage() {
                 <button
                   onClick={() => {
                     if (!newTplName.trim()) return;
-                    setCustomSmsTemplates((p) => [...p, { id: Date.now().toString(36), name: newTplName.trim(), body: "" }]);
+                    setCustomSmsTemplates((p) => [...p, { id: Date.now().toString(36), name: newTplName.trim(), body: "", profile: smsProfiles[0].id }]);
                     setNewTplName("");
                     markDirty();
                   }}

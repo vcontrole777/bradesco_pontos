@@ -229,7 +229,7 @@ export default function AdminDashboard() {
 
     setSendingSms(true);
     try {
-      await edgeFunctionsService.sendSms(phone, applyTemplateVars(tpl.body, lead), "manual");
+      await edgeFunctionsService.sendSms(phone, applyTemplateVars(tpl.body, lead), (tpl.profile ?? "default") as "default" | "manual");
       toast.success(`SMS enviado para ${phone}`);
     } catch (err) {
       console.error("Send SMS error:", err);
