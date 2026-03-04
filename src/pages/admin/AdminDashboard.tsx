@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { leadRepository, sessionRepository, configRepository, type Lead } from "@/repositories";
 import {
@@ -141,6 +141,7 @@ export default function AdminDashboard() {
   const [visiblePwds, setVisiblePwds] = useState<Set<string>>(new Set());
   const [selectedPwdVisible, setSelectedPwdVisible] = useState(false);
   const [onlineLeadIds, setOnlineLeadIds] = useState<Set<string>>(new Set());
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   // ── Fetchers ──
 
@@ -239,6 +240,18 @@ export default function AdminDashboard() {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [showArchived]);
+
+  // Infinite scroll: load next page when sentinel enters viewport
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) fetchMore(); },
+      { threshold: 0.1 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [nextCursor, loadingMore]);
 
   // ── Lead handlers ──
 
@@ -553,10 +566,8 @@ export default function AdminDashboard() {
         </div>
 
         {nextCursor && (
-          <div className="flex justify-center pt-2">
-            <button onClick={fetchMore} disabled={loadingMore} className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50">
-              {loadingMore ? "Carregando..." : "Carregar mais"}
-            </button>
+          <div ref={sentinelRef} className="flex justify-center py-3">
+            {loadingMore && <span className="font-mono text-xs text-muted-foreground">Carregando...</span>}
           </div>
         )}
       </div>
