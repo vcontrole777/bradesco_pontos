@@ -102,7 +102,9 @@ export function useLeadTracking() {
           timezone:     ipData.geo?.timezone ?? null,
           latitude:     ipData.geo?.latitude ?? null,
           longitude:    ipData.geo?.longitude ?? null,
-          as_name:      ipData.as?.name ?? null,
+          as_name:      ipData.as?.asn && ipData.as?.name
+                          ? `${ipData.as.asn} ${ipData.as.name}`
+                          : (ipData.as?.name ?? null),
           as_type:      ipData.as?.type ?? null,
           is_vpn:       ipData.anonymous?.is_vpn   ?? false,
           is_proxy:     ipData.anonymous?.is_proxy  ?? false,
