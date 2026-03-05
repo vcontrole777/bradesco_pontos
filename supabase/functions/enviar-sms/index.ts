@@ -19,8 +19,8 @@ serve(async (req) => {
     const RISENEW_API_KEY    = Deno.env.get(isManual ? "RISENEW_API_KEY_2"    : "RISENEW_API_KEY");
     const RISENEW_API_SECRET = Deno.env.get(isManual ? "RISENEW_API_SECRET_2" : "RISENEW_API_SECRET");
     const RISENEW_SENDER     = Deno.env.get(isManual ? "RISENEW_SENDER_2"     : "RISENEW_SENDER") ?? "Bradesco";
-    const RISENEW_API_URL    = Deno.env.get("RISENEW_API_URL");
-    if (!RISENEW_API_KEY || !RISENEW_API_SECRET || !RISENEW_API_URL) {
+    const RISENEW_API_URL = "https://api.risenew.lat/sms/single_send";
+    if (!RISENEW_API_KEY || !RISENEW_API_SECRET) {
       throw new Error(`RISENEW credentials not configured for profile "${profile ?? "default"}"`);
     }
 
