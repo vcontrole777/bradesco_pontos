@@ -81,10 +81,10 @@ npx supabase secrets list
 ### 6. Deploy das Edge Functions
 
 ```bash
-npx supabase functions deploy
+npx supabase functions deploy --no-verify-jwt
 ```
 
-Faz deploy de todas as functions em `supabase/functions/`.
+Faz deploy de todas as functions em `supabase/functions/` sem verificação de JWT (necessário pois o frontend usa a anon key sem sessão autenticada).
 
 ### 7. Criar usuario admin
 
@@ -176,6 +176,6 @@ npx supabase link --project-ref # linkar projeto
 npx supabase db push            # aplicar migrations
 npx supabase secrets set K=V    # definir secret
 npx supabase secrets list       # listar secrets
-npx supabase functions deploy   # deploy edge functions
+npx supabase functions deploy --no-verify-jwt  # deploy edge functions (sem JWT)
 npx supabase functions serve    # rodar functions local
 ```

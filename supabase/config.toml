@@ -11,3 +11,12 @@ verify_jwt = false
 
 [functions.ip-info]
 verify_jwt = false
+
+[functions.enviar-sms]
+verify_jwt = false
+
+[functions.verificar-turnstile]
+verify_jwt = false
+
+[functions.meta-capi]
+verify_jwt = false
