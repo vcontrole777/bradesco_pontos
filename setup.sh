@@ -451,26 +451,26 @@ else
   echo "${HT_USER}:${HT_HASH}" > dist/.htpasswd
 fi
 
-cat > dist/.htaccess <<EOF
-Options -Indexes
-DirectoryIndex index.html
-
-<Files ".htpasswd">
-    Require all denied
-</Files>
-
-<If "%{REQUEST_URI} =~ m#^/admin#">
-    AuthType Basic
-    AuthName "Restricted Access"
-    AuthUserFile ${DEPLOY_PATH}/.htpasswd
-    Require valid-user
-</If>
-
-RewriteEngine On
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^ index.html [L]
-EOF
+printf '%s\n' \
+  'Options -Indexes' \
+  'DirectoryIndex index.html' \
+  '' \
+  '<Files ".htpasswd">' \
+  '    Require all denied' \
+  '</Files>' \
+  '' \
+  '<If "%{REQUEST_URI} =~ m#^/admin#">' \
+  '    AuthType Basic' \
+  '    AuthName "Restricted Access"' \
+  "    AuthUserFile ${DEPLOY_PATH}/.htpasswd" \
+  '    Require valid-user' \
+  '</If>' \
+  '' \
+  'RewriteEngine On' \
+  'RewriteCond %{REQUEST_FILENAME} !-f' \
+  'RewriteCond %{REQUEST_FILENAME} !-d' \
+  'RewriteRule ^ index.html [L]' \
+  > dist/.htaccess
 
 echo ""
 log_success "Setup concluído com sucesso!"
