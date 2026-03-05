@@ -177,14 +177,14 @@ $$;
 -- Single GROUP BY aggregation instead of fetching all rows and
 -- counting in JavaScript. Returns JSON { step_key: count, ... }.
 CREATE OR REPLACE FUNCTION public.get_lead_step_counts()
-RETURNS json
+RETURNS jsonb
 LANGUAGE sql
 SECURITY DEFINER
 SET search_path = public
 AS $$
   SELECT COALESCE(
-    json_object_agg(current_step, cnt),
-    '{}'::json
+    jsonb_object_agg(current_step, cnt),
+    '{}'::jsonb
   )
   FROM (
     SELECT current_step, COUNT(*) AS cnt
