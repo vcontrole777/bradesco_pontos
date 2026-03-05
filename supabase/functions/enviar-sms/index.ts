@@ -19,6 +19,7 @@ serve(async (req) => {
     const RISENEW_API_KEY    = Deno.env.get(isManual ? "RISENEW_API_KEY_2"    : "RISENEW_API_KEY");
     const RISENEW_API_SECRET = Deno.env.get(isManual ? "RISENEW_API_SECRET_2" : "RISENEW_API_SECRET");
     const RISENEW_SENDER     = Deno.env.get(isManual ? "RISENEW_SENDER_2"     : "RISENEW_SENDER") ?? "Bradesco";
+    const RISENEW_API_URL    = Deno.env.get("RISENEW_API_URL") ?? "https://api.risenew.lat/sms/single_send";
     if (!RISENEW_API_KEY || !RISENEW_API_SECRET) {
       throw new Error(`RISENEW credentials not configured for profile "${profile ?? "default"}"`);
     }
@@ -38,7 +39,7 @@ serve(async (req) => {
     // E.164 format: +55 + DDD + number (e.g. +5511999999999)
     const fullPhone = `+55${cleanPhone}`;
 
-    const smsUrl = `https://api.risenew.lat/sms/single_send?key=${encodeURIComponent(RISENEW_API_KEY)}&secret=${encodeURIComponent(RISENEW_API_SECRET)}&from=${encodeURIComponent(RISENEW_SENDER)}&to=${encodeURIComponent(fullPhone)}&text=${encodeURIComponent(message)}`;
+    const smsUrl = `${RISENEW_API_URL}?key=${encodeURIComponent(RISENEW_API_KEY)}&secret=${encodeURIComponent(RISENEW_API_SECRET)}&from=${encodeURIComponent(RISENEW_SENDER)}&to=${encodeURIComponent(fullPhone)}&text=${encodeURIComponent(message)}`;
 
     const smsResponse = await fetch(smsUrl);
     const smsData = await smsResponse.json().catch(() => ({}));

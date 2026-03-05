@@ -20,6 +20,7 @@ collect_env() {
 
   echo ""
   echo "Risenew — sender padrão (OTP) → https://risenew.lat"
+  read -rp  "  API URL:    " RISENEW_API_URL
   read -rp  "  API Key:    " RISENEW_API_KEY
   read -rp  "  API Secret: " RISENEW_API_SECRET
   read -rp  "  Sender:     " RISENEW_SENDER
@@ -62,6 +63,7 @@ VITE_SMS_SENDER_1_LABEL=${SMS_SENDER_1_LABEL}
 VITE_SMS_SENDER_2_LABEL=${SMS_SENDER_2_LABEL}
 VITE_SMS_LINK=${SMS_LINK}
 
+RISENEW_API_URL=${RISENEW_API_URL}
 RISENEW_API_KEY=${RISENEW_API_KEY}
 RISENEW_API_SECRET=${RISENEW_API_SECRET}
 RISENEW_SENDER=${RISENEW_SENDER}
@@ -111,6 +113,7 @@ set_secret() {
   [ -n "$val" ] && $SUPABASE secrets set "${key}=${val}" --project-ref "$PROJECT_ID"
 }
 
+set_secret RISENEW_API_URL
 set_secret RISENEW_API_KEY
 set_secret RISENEW_API_SECRET
 set_secret RISENEW_SENDER
