@@ -65,8 +65,8 @@ check_migrations() {
   # Extrai nomes únicos de tabelas criadas nas migrations
   local tables
   tables=$(grep -rih "CREATE TABLE" "$MIGRATION_DIR/"*.sql 2>/dev/null \
-    | grep -ioP '(?<=CREATE TABLE\s)(IF NOT EXISTS\s)?(public\.)?[a-z_]+' \
-    | sed 's/public\.//' | sort -u)
+    | sed -E 's/.*CREATE[[:space:]]+TABLE[[:space:]]+(IF[[:space:]]+NOT[[:space:]]+EXISTS[[:space:]]+)?(public\.)?([a-zA-Z_]+).*/\3/I' \
+    | grep -v '^$' | sort -u)
 
   if [ -z "$tables" ]; then
     log_warn "Nenhuma CREATE TABLE encontrada nas migrations — verificação pulada."
