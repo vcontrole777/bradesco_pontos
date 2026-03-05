@@ -37,51 +37,51 @@ MIGRATION_DIR="supabase/migrations"
 
 # ── Modo: nova instalação ou atualização ──────────────────────────────────────
 echo -e "${BOLD}Tipo de operação:${NC}"
-echo -e "  ${CYAN}1.${NC} Nova instalação"
-echo -e "  ${CYAN}2.${NC} Atualizar instalação existente (git pull + install + build)"
+echo -e "  ${CYAN}1.${NC} Nova instalação  (git pull + install + build + Supabase setup)"
+echo -e "  ${CYAN}2.${NC} Atualizar        (git pull + install + build)"
 echo ""
 read -rp "$(echo -e "${BOLD}Selecione [1/2]:${NC} ")" _MODE
 
+if [ "$_MODE" != "1" ] && [ "$_MODE" != "2" ]; then
+  log_error "Opção inválida: $_MODE"
+  exit 1
+fi
+
+# ── Git pull + install + build (ambas as opções) ──────────────────────────────
+log_step "GIT: ATUALIZAR CÓDIGO"
+
+check_dep "git"
+
+if [ ! -d ".git" ]; then
+  log_error "Pasta atual não é um repositório git. Execute o script dentro do projeto."
+  exit 1
+fi
+
+_remote=$(git remote get-url origin 2>/dev/null || echo "")
+if [ -z "$_remote" ]; then
+  log_error "Nenhum remote 'origin' configurado."
+  exit 1
+fi
+log_info "Repositório: $_remote"
+
+_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+log_info "Branch: $_branch"
+
+git pull origin "$_branch"
+log_success "Código atualizado."
+
+log_step "INSTALAR DEPENDÊNCIAS"
+if command -v bun &>/dev/null; then
+  log_info "Usando Bun..."
+  bun install
+else
+  log_info "Usando NPM..."
+  npm install
+fi
+log_success "Dependências instaladas."
+
+# Opção 2: só build e sai
 if [ "$_MODE" = "2" ]; then
-  log_step "ATUALIZAÇÃO"
-
-  check_dep "git"
-
-  # Detectar repositório git
-  if [ ! -d ".git" ]; then
-    log_error "Pasta atual não é um repositório git. Execute o script dentro do projeto."
-    exit 1
-  fi
-
-  # Verificar remote configurado
-  _remote=$(git remote get-url origin 2>/dev/null || echo "")
-  if [ -z "$_remote" ]; then
-    log_error "Nenhum remote 'origin' configurado."
-    exit 1
-  fi
-  log_info "Repositório: $_remote"
-
-  # Salvar branch atual
-  _branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
-  log_info "Branch: $_branch"
-
-  # Pull
-  log_info "Baixando atualizações..."
-  git pull origin "$_branch"
-  log_success "Código atualizado."
-
-  # Install
-  log_step "INSTALAR DEPENDÊNCIAS"
-  if command -v bun &>/dev/null; then
-    log_info "Usando Bun..."
-    bun install
-  else
-    log_info "Usando NPM..."
-    npm install
-  fi
-  log_success "Dependências instaladas."
-
-  # Build
   log_step "BUILD"
   if command -v bun &>/dev/null; then
     bun run build
@@ -92,6 +92,8 @@ if [ "$_MODE" = "2" ]; then
   echo ""
   exit 0
 fi
+
+# Opção 1: continua com setup completo do Supabase →
 
 # ── Input helper ──────────────────────────────────────────────────────────────
 ask() {
@@ -496,11 +498,9 @@ deploy_functions_with_rollback  # Camada 4: deploy com rollback automático
 # ── Build Frontend ────────────────────────────────────────────────────────────
 log_step "DEPLOY: FRONTEND BUILD"
 if command -v bun &>/dev/null; then
-  log_info "Usando Bun..."
-  bun install && bun run build
+  bun run build
 else
-  log_info "Usando NPM..."
-  npm install && npm run build
+  npm run build
 fi
 
 # ── Criar usuário admin no Supabase Auth ──────────────────────────────────────
