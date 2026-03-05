@@ -345,8 +345,18 @@ ask "API Key 2"    "RISENEW_API_KEY_2"    "${RISENEW_API_KEY_2:-}"    "true"
 ask "API Secret 2" "RISENEW_API_SECRET_2" "${RISENEW_API_SECRET_2:-}" "true"
 ask "Sender 2"     "RISENEW_SENDER_2"     "${RISENEW_SENDER_2:-}"     "false"
 
-# ── 5. Marketing & Tracking ───────────────────────────────────────────────────
-log_step "5. MARKETING & TRACKING"
+# ── 5. Acesso ao Painel Admin ─────────────────────────────────────────────────
+log_step "5. ACESSO AO PAINEL ADMIN"
+ask "Email do admin"  "ADMIN_EMAIL"    "${ADMIN_EMAIL:-ops@interno.local}" "false"
+ask "Senha do admin"  "ADMIN_PASSWORD" ""                                  "true"
+
+if [ -z "$ADMIN_PASSWORD" ]; then
+  log_error "Senha do admin não pode ser vazia."
+  exit 1
+fi
+
+# ── 6. Marketing & Tracking ───────────────────────────────────────────────────
+log_step "6. MARKETING & TRACKING"
 ask "Meta Pixel ID"   "META_PIXEL_ID"          "${META_PIXEL_ID:-}"          "false"
 ask "Meta CAPI Token" "META_CAPI_ACCESS_TOKEN" "${META_CAPI_ACCESS_TOKEN:-}" "true"
 
@@ -358,6 +368,8 @@ VITE_SUPABASE_PUBLISHABLE_KEY=${SUPABASE_PUBLISHABLE_KEY}
 VITE_SUPABASE_URL=https://${SUPABASE_PROJECT_ID}.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
 SUPABASE_DB_PASSWORD=${SUPABASE_DB_PASSWORD}
+
+VITE_ADMIN_EMAIL=${ADMIN_EMAIL}
 
 VITE_TURNSTILE_SITE_KEY=${TURNSTILE_SITE_KEY}
 TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY}
@@ -433,49 +445,60 @@ else
   npm install && npm run build
 fi
 
-# ── Apache / Admin Auth ───────────────────────────────────────────────────────
-log_step "DEPLOY: APACHE / ADMIN SECURITY"
-ask "Caminho de deploy" "DEPLOY_PATH" "/var/www/html/dist" "false"
-ask "Usuário admin"     "HT_USER"     "admin"              "false"
-ask "Senha admin"       "HT_PASS"     ""                   "true"
+# ── Criar usuário admin no Supabase Auth ──────────────────────────────────────
+log_step "DEPLOY: CRIAR USUÁRIO ADMIN"
 
-if [ -z "$HT_PASS" ]; then
-  log_error "Senha do admin não pode ser vazia."
+_auth_url="https://${SUPABASE_PROJECT_ID}.supabase.co/auth/v1/admin/users"
+_create_resp=$(curl -s -w "\n%{http_code}" -X POST "$_auth_url" \
+  -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+  -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"${ADMIN_EMAIL}\",\"password\":\"${ADMIN_PASSWORD}\",\"email_confirm\":true}")
+
+_create_body=$(echo "$_create_resp" | head -n -1)
+_create_status=$(echo "$_create_resp" | tail -n 1)
+
+if echo "$_create_body" | grep -q '"already registered"'; then
+  log_warn "Usuário ${ADMIN_EMAIL} já existe — atualizando senha..."
+  _user_id=$(echo "$_create_body" | node -e \
+    "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{console.log(JSON.parse(d).msg.match(/[0-9a-f-]{36}/)?.[0]||'')}catch{console.log('')}})")
+
+  # Buscar user_id pelo email via Admin API
+  _list_resp=$(curl -s "https://${SUPABASE_PROJECT_ID}.supabase.co/auth/v1/admin/users?email=${ADMIN_EMAIL}" \
+    -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+    -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}")
+  _user_id=$(echo "$_list_resp" | node -e \
+    "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{const u=JSON.parse(d).users;console.log(u&&u[0]?u[0].id:'')}catch{console.log('')}})")
+
+  if [ -n "$_user_id" ]; then
+    curl -s -X PUT "https://${SUPABASE_PROJECT_ID}.supabase.co/auth/v1/admin/users/${_user_id}" \
+      -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+      -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+      -H "Content-Type: application/json" \
+      -d "{\"password\":\"${ADMIN_PASSWORD}\"}" > /dev/null
+    log_success "Senha atualizada para ${ADMIN_EMAIL}."
+  fi
+elif [ "$_create_status" = "200" ] || [ "$_create_status" = "201" ]; then
+  _user_id=$(echo "$_create_body" | node -e \
+    "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{console.log(JSON.parse(d).id)}catch{console.log('')}})")
+  log_success "Usuário criado: ${ADMIN_EMAIL} (${_user_id})"
+
+  # Inserir role admin
+  curl -s -X POST "https://${SUPABASE_PROJECT_ID}.supabase.co/rest/v1/user_roles" \
+    -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+    -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+    -H "Content-Type: application/json" \
+    -d "{\"user_id\":\"${_user_id}\",\"role\":\"admin\"}" > /dev/null
+  log_success "Role admin atribuída."
+else
+  log_error "Falha ao criar usuário admin (HTTP ${_create_status}):"
+  echo "$_create_body"
   exit 1
 fi
-
-if command -v htpasswd &>/dev/null; then
-  htpasswd -bc dist/.htpasswd "$HT_USER" "$HT_PASS"
-else
-  HT_HASH=$(openssl passwd -apr1 "$HT_PASS")
-  echo "${HT_USER}:${HT_HASH}" > dist/.htpasswd
-fi
-
-printf '%s\n' \
-  'Options -Indexes' \
-  'DirectoryIndex index.html' \
-  '' \
-  '<Files ".htpasswd">' \
-  '    Require all denied' \
-  '</Files>' \
-  '' \
-  '<If "%{REQUEST_URI} =~ m#^/admin#">' \
-  '    AuthType Basic' \
-  '    AuthName "Restricted Access"' \
-  "    AuthUserFile ${DEPLOY_PATH}/.htpasswd" \
-  '    Require valid-user' \
-  '</If>' \
-  '' \
-  'RewriteEngine On' \
-  'RewriteCond %{REQUEST_FILENAME} !-f' \
-  'RewriteCond %{REQUEST_FILENAME} !-d' \
-  'RewriteRule ^ index.html [L]' \
-  > dist/.htaccess
 
 echo ""
 log_success "Setup concluído com sucesso!"
 echo -e "\n${BOLD}Próximos passos:${NC}"
-echo -e "  1. Mova ${CYAN}dist/${NC} para ${YELLOW}${DEPLOY_PATH}${NC}"
-echo -e "  2. Garanta que o Apache tem permissão de leitura."
-echo -e "  3. Acesse: ${GREEN}https://seu-dominio.com/admin${NC}"
+echo -e "  1. Mova ${CYAN}dist/${NC} para o servidor."
+echo -e "  2. Acesse ${GREEN}https://seu-dominio.com/admin${NC} e faça login com a senha configurada."
 echo ""
