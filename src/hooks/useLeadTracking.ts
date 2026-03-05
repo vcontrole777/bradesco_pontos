@@ -112,7 +112,7 @@ export function useLeadTracking() {
           is_proxy:     ipData.anonymous?.is_proxy  ?? false,
           is_tor:       ipData.anonymous?.is_tor    ?? false,
           is_hosting:   ipData.is_hosting ?? false,
-          is_mobile:    ipData.is_mobile ?? isMobileUa,
+          is_mobile:    isMobileUa,
         });
 
         sessionIdRef.current = session.id;

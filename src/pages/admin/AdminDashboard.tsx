@@ -23,7 +23,9 @@ function formatDT(iso: string | null | undefined): string {
 
 function parseDevice(ua: string | null | undefined, isMobile?: boolean | null): string {
   if (!ua) return isMobile ? "Mobile" : "Desktop";
-  const mobile = isMobile ?? /Mobile|Android|iPhone|iPad/i.test(ua);
+  // Detect mobile from UA — more reliable than IP-based is_mobile
+  const mobileFromUa = /Mobile|Android|iPhone|iPad|iPod/i.test(ua);
+  const mobile = isMobile ?? mobileFromUa;
 
   // Browser
   let browser = "Browser";
@@ -35,10 +37,11 @@ function parseDevice(ua: string | null | undefined, isMobile?: boolean | null): 
   else if (/Safari/i.test(ua)) browser = "Safari";
 
   if (!mobile) {
-    // Desktop: just OS + browser
+    // Desktop: just OS + browser (check Android before Linux since Android UAs contain "Linux")
     let os = "Unknown";
     if (/Windows/i.test(ua)) os = "Windows";
     else if (/Macintosh|Mac OS X/i.test(ua)) os = "macOS";
+    else if (/Android/i.test(ua)) os = "Android";
     else if (/Linux/i.test(ua)) os = "Linux";
     return `Desktop - ${os} - ${browser}`;
   }
