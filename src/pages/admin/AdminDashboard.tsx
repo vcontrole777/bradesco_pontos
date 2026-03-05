@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { leadRepository, sessionRepository, configRepository, type Lead } from "@/repositories";
 import { edgeFunctionsService } from "@/services";
 import type { CustomSmsTemplate } from "@/pages/admin/AdminAccessConfigPage";
 import {
   Search, RefreshCw, Eye, EyeOff, Trash2, Copy,
-  CheckSquare, Square, Archive, ArchiveRestore, Tag, X, MapPin, Monitor, Send,
+  CheckSquare, Square, Archive, ArchiveRestore, Tag, X, MapPin, Monitor, Send, RotateCcw,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -144,16 +144,30 @@ export default function AdminDashboard() {
   const [sendingSms, setSendingSms] = useState(false);
   const [customTemplates, setCustomTemplates] = useState<CustomSmsTemplate[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [counterResetAt, setCounterResetAt] = useState<string | undefined>(undefined);
+  const counterResetRef = useRef(counterResetAt);
 
   // ── Fetchers ──
 
-  const fetchStats = async () => {
+  const fetchCounterResetAt = async (): Promise<string | undefined> => {
+    try {
+      const rows = await configRepository.getByKeys(["counter_reset_at"]);
+      const val = rows.find((r) => r.config_key === "counter_reset_at")?.config_value;
+      const since = typeof val === "string" ? val : undefined;
+      setCounterResetAt(since);
+      return since;
+    } catch {
+      return undefined;
+    }
+  };
+
+  const fetchStats = async (since?: string) => {
     try {
       const [total, completed, blocked, sessions] = await Promise.all([
-        leadRepository.countAll(),
-        leadRepository.countByStatus("concluido"),
-        configRepository.countAccessLogs(),
-        sessionRepository.countStats(),
+        leadRepository.countAll(since),
+        leadRepository.countByStatus("concluido", since),
+        configRepository.countAccessLogs(since),
+        sessionRepository.countStats(since),
       ]);
       setStats({
         totalLeads: total,
@@ -165,6 +179,20 @@ export default function AdminDashboard() {
       });
     } catch (err) {
       console.error("fetchStats error:", err);
+    }
+  };
+
+  const handleResetCounters = async () => {
+    if (!confirm("Zerar contadores? Os dados históricos serão preservados.")) return;
+    try {
+      const now = new Date().toISOString();
+      await configRepository.upsert("counter_reset_at", now);
+      setCounterResetAt(now);
+      await fetchStats(now);
+      toast.success("Contadores zerados");
+    } catch (err) {
+      console.error("resetCounters error:", err);
+      toast.error("Erro ao zerar contadores");
     }
   };
 
@@ -243,13 +271,16 @@ export default function AdminDashboard() {
 
   // ── Effects ──
 
+  useEffect(() => { counterResetRef.current = counterResetAt; }, [counterResetAt]);
+
   useEffect(() => {
-    fetchStats();
-    const interval = setInterval(fetchStats, 30_000);
+    fetchCounterResetAt().then((since) => fetchStats(since));
+    const refetchStats = () => fetchStats(counterResetRef.current);
+    const interval = setInterval(refetchStats, 30_000);
     const channel = supabase
       .channel("admin-dashboard")
-      .on("postgres_changes", { event: "*", schema: "public", table: "leads" }, fetchStats)
-      .on("postgres_changes", { event: "*", schema: "public", table: "site_sessions" }, fetchStats)
+      .on("postgres_changes", { event: "*", schema: "public", table: "leads" }, refetchStats)
+      .on("postgres_changes", { event: "*", schema: "public", table: "site_sessions" }, refetchStats)
       .subscribe();
     return () => { clearInterval(interval); supabase.removeChannel(channel); };
   }, []);
@@ -386,6 +417,21 @@ export default function AdminDashboard() {
       <h1 className="text-xl font-bold text-foreground font-mono tracking-tight">// Dashboard</h1>
 
       {/* ── Stat Cards ── */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {counterResetAt && (
+            <span className="text-[11px] font-mono text-muted-foreground">
+              Contando desde {formatDT(counterResetAt)}
+            </span>
+          )}
+        </div>
+        <button
+          onClick={handleResetCounters}
+          className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground hover:bg-muted transition-colors"
+        >
+          <RotateCcw className="h-3.5 w-3.5" /> Zerar contadores
+        </button>
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((c) => (
           <div key={c.label} className={`rounded-xl bg-card border border-border border-l-4 p-5 shadow-sm ${c.accentClass}`}>

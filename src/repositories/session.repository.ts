@@ -53,20 +53,26 @@ export class SessionRepository {
     if (error) throw new DatabaseError("Failed to end session", error);
   }
 
-  async countStats(): Promise<{ online: number; total: number }> {
+  async countStats(since?: string): Promise<{ online: number; total: number }> {
     // Online = heartbeat recebido nos últimos 60s (consistente com fetchOnlineLeadIds)
     const onlineThreshold = new Date(Date.now() - 60_000).toISOString();
 
+    let onlineQuery = this.db
+      .from("site_sessions")
+      .select("*", { count: "exact", head: true })
+      .gte("last_seen_at", onlineThreshold);
+
+    let totalQuery = this.db
+      .from("site_sessions")
+      .select("*", { count: "exact", head: true });
+
+    if (since) {
+      onlineQuery = onlineQuery.gte("started_at", since);
+      totalQuery = totalQuery.gte("started_at", since);
+    }
+
     const [{ count: online, error: e1 }, { count: total, error: e2 }] =
-      await Promise.all([
-        this.db
-          .from("site_sessions")
-          .select("*", { count: "exact", head: true })
-          .gte("last_seen_at", onlineThreshold),
-        this.db
-          .from("site_sessions")
-          .select("*", { count: "exact", head: true }),
-      ]);
+      await Promise.all([onlineQuery, totalQuery]);
 
     if (e1) throw new DatabaseError("Failed to count online sessions", e1);
     if (e2) throw new DatabaseError("Failed to count sessions", e2);

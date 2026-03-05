@@ -71,11 +71,14 @@ export class ConfigRepository {
     if (error) throw new DatabaseError("Failed to log access", error);
   }
 
-  async countAccessLogs(): Promise<number> {
-    const { count, error } = await this.db
+  async countAccessLogs(since?: string): Promise<number> {
+    let query = this.db
       .from("access_logs")
       .select("*", { count: "exact", head: true });
 
+    if (since) query = query.gte("created_at", since);
+
+    const { count, error } = await query;
     if (error) throw new DatabaseError("Failed to count access logs", error);
     return count ?? 0;
   }

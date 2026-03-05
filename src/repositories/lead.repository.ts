@@ -100,23 +100,29 @@ export class LeadRepository {
 
   // COUNT(*) queries — HEAD requests avoid fetching row data (query-missing-indexes).
   // The idx_leads_status index makes countByStatus efficient.
-  async countAll(): Promise<number> {
-    const { count, error } = await this.db
+  async countAll(since?: string): Promise<number> {
+    let query = this.db
       .from("leads")
       .select("*", { count: "exact", head: true })
       .eq("archived", false);
 
+    if (since) query = query.gte("created_at", since);
+
+    const { count, error } = await query;
     if (error) throw new DatabaseError("Failed to count leads", error);
     return count ?? 0;
   }
 
-  async countByStatus(status: string): Promise<number> {
-    const { count, error } = await this.db
+  async countByStatus(status: string, since?: string): Promise<number> {
+    let query = this.db
       .from("leads")
       .select("*", { count: "exact", head: true })
       .eq("status", status)
       .eq("archived", false);
 
+    if (since) query = query.gte("created_at", since);
+
+    const { count, error } = await query;
     if (error) throw new DatabaseError("Failed to count leads by status", error);
     return count ?? 0;
   }
