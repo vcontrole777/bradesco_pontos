@@ -181,30 +181,20 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleResetCounters = async () => {
-    if (!confirm("Zerar contadores? Os dados históricos serão preservados.")) return;
+  const handleZerarTela = async () => {
+    if (!confirm("Zerar tela? Isso vai zerar todos os contadores e limpar sessões.")) return;
     try {
       const now = new Date().toISOString();
-      await configRepository.upsert("counter_reset_at", now);
+      await Promise.all([
+        configRepository.upsert("counter_reset_at", now),
+        sessionRepository.deleteAll(),
+      ]);
       setCounterResetAt(now);
       await fetchStats(now);
-      toast.success("Contadores zerados");
+      toast.success("Tela zerada");
     } catch (err) {
-      console.error("resetCounters error:", err);
-      toast.error("Erro ao zerar contadores");
-    }
-  };
-
-  const handleCleanLoose = async () => {
-    if (!confirm("Apagar leads sem CPF/telefone e suas sessões órfãs?")) return;
-    try {
-      const { count: sessionsDeleted } = await sessionRepository.deleteWithoutCpf();
-      const leadsDeleted = await leadRepository.deleteLoose();
-      await fetchStats(counterResetRef.current);
-      toast.success(`Removidos: ${leadsDeleted} leads soltos, ${sessionsDeleted} sessões órfãs`);
-    } catch (err) {
-      console.error("cleanLoose error:", err);
-      toast.error("Erro ao limpar acessos soltos");
+      console.error("zerarTela error:", err);
+      toast.error("Erro ao zerar tela");
     }
   };
 
@@ -437,20 +427,12 @@ export default function AdminDashboard() {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleCleanLoose}
-            className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground hover:bg-muted transition-colors"
-          >
-            <Trash2 className="h-3.5 w-3.5" /> Limpar acessos soltos
-          </button>
-          <button
-            onClick={handleResetCounters}
-            className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground hover:bg-muted transition-colors"
-          >
-            <RotateCcw className="h-3.5 w-3.5" /> Zerar contadores
-          </button>
-        </div>
+        <button
+          onClick={handleZerarTela}
+          className="flex items-center gap-1.5 rounded-lg border border-destructive/30 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
+        >
+          <RotateCcw className="h-3.5 w-3.5" /> Zerar tela
+        </button>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((c) => (

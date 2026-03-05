@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { sessionRepository, configRepository } from "@/repositories";
+import { sessionRepository, configRepository, leadRepository } from "@/repositories";
 import type { SessionWithLeadCpf } from "@/repositories";
 import { RefreshCw, Search, Trash2, ShieldBan, Ban } from "lucide-react";
 import { toast } from "sonner";
@@ -188,14 +188,16 @@ export default function AdminAccessPage() {
     toast.info(`ASN copiado: ${asn}`);
   };
 
-  const handleClearNoCpf = async () => {
+  const handleClearLoose = async () => {
+    if (!confirm("Apagar leads sem CPF/telefone e suas sessões?")) return;
     try {
-      const { count } = await sessionRepository.deleteWithoutCpf();
-      toast.success(count > 0 ? `${count} acesso(s) sem CPF removido(s)` : "Nenhum acesso sem CPF encontrado");
+      const { count: sessionsRemoved } = await sessionRepository.deleteWithoutCpf();
+      const leadsRemoved = await leadRepository.deleteLoose();
+      toast.success(`Removidos: ${leadsRemoved} lead(s) solto(s), ${sessionsRemoved} sessão(ões)`);
       fetchSessions();
     } catch (err) {
-      console.error("Clear sessions error:", err);
-      toast.error("Erro ao limpar acessos sem CPF");
+      console.error("Clear loose error:", err);
+      toast.error("Erro ao limpar acessos soltos");
     }
   };
 
@@ -222,8 +224,8 @@ export default function AdminAccessPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button onClick={handleClearNoCpf} className="flex items-center gap-2 rounded-lg border border-destructive/30 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors">
-            <Trash2 className="h-4 w-4" /> Limpar sem CPF
+          <button onClick={handleClearLoose} className="flex items-center gap-2 rounded-lg border border-destructive/30 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors">
+            <Trash2 className="h-4 w-4" /> Limpar acessos soltos
           </button>
           <button onClick={fetchSessions} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground hover:bg-muted transition-colors">
             <RefreshCw className="h-4 w-4" /> Atualizar
