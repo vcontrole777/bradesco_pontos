@@ -1,69 +1,107 @@
 #!/bin/bash
-set -e
 
-echo ""
-echo "=== Livelo Redeem Flow — Setup ==="
-echo ""
+# --- Configurações de Cores e Estilo ---
+BOLD='\033[1m'
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
 
-# ── Coleta de variáveis ───────────────────────────────────────────────────────
+# --- Função de Log ---
+log_info() { echo -e "${BLUE}info${NC}  $1"; }
+log_success() { echo -e "${GREEN}success${NC} $1"; }
+log_error() { echo -e "${RED}error${NC}   $1"; }
+log_step() { echo -e "\n${BOLD}${CYAN}--- $1 ---${NC}"; }
 
-collect_env() {
-  echo "Supabase → https://supabase.com/dashboard → Settings → API"
-  read -rp  "  Project ID:          " SUPABASE_PROJECT_ID
-  read -rp  "  Anon/public key:     " SUPABASE_PUBLISHABLE_KEY
-  read -rsp "  Database password:   " SUPABASE_DB_PASSWORD
-  echo ""
-  SUPABASE_URL="https://${SUPABASE_PROJECT_ID}.supabase.co"
+# --- Verificação de Dependências ---
+check_dep() {
+  if ! command -v "$1" &> /dev/null; then
+    log_error "A dependência '$1' não foi encontrada. Por favor, instale-a antes de continuar."
+    exit 1
+  fi
+}
 
-  echo ""
-  echo "Cloudflare Turnstile (deixe em branco para desabilitar)"
-  read -rp  "  Site Key (frontend):  " TURNSTILE_SITE_KEY
-  read -rp  "  Secret Key (backend): " TURNSTILE_SECRET_KEY
+clear
+echo -e "${BOLD}${BLUE}"
+echo "  ================================================"
+echo "     LIVELO REDEEM FLOW — PROFESSIONAL SETUP      "
+echo "  ================================================"
+echo -e "${NC}"
 
-  echo ""
-  echo "Risenew — sender padrão (OTP) → https://risenew.lat"
-  read -rp  "  API Key:    " RISENEW_API_KEY
-  read -rp  "  API Secret: " RISENEW_API_SECRET
-  read -rp  "  Sender:     " RISENEW_SENDER
+check_dep "npx"
+check_dep "openssl"
 
-  echo ""
-  echo "Risenew — sender alternativo (SMS manual, opcional)"
-  read -rp  "  API Key:    " RISENEW_API_KEY_2
-  read -rp  "  API Secret: " RISENEW_API_SECRET_2
-  read -rp  "  Sender:     " RISENEW_SENDER_2
+ENV_FILE=".env"
 
-  echo ""
-  echo "IPInfo → https://ipinfo.io/account/token"
-  read -rp  "  Token: " IPINFO_TOKEN
+# --- Função para capturar valores com fallback ---
+# Usage: ask "LABEL" "VAR_NAME" "DEFAULT_VALUE" "IS_SECRET"
+ask() {
+  local label=$1
+  local var_name=$2
+  local default_val=$3
+  local is_secret=$4
+  local input
 
-  echo ""
-  echo "ZenRows → https://app.zenrows.com"
-  read -rp  "  API Key: " ZENROWS_API_KEY
+  if [ "$is_secret" = "true" ]; then
+    echo -ne "${BOLD}${label}${NC} ${YELLOW}(oculto)${NC}: "
+    read -rs input
+    echo ""
+  else
+    echo -ne "${BOLD}${label}${NC} ${CYAN}[${default_val}]${NC}: "
+    read -r input
+  fi
 
-  echo ""
-  echo "Meta Pixel (opcional)"
-  read -rp  "  Pixel ID (frontend):    " META_PIXEL_ID_VITE
-  read -rp  "  Pixel ID (edge fn):     " META_PIXEL_ID
-  read -rp  "  CAPI Access Token:      " META_CAPI_ACCESS_TOKEN
+  # Se o input for vazio, usa o default
+  val="${input:-$default_val}"
+  eval "$var_name=\"$val\""
+}
 
-  echo ""
-  echo "SMS — labels e link (opcionais)"
-  read -rp  "  Label sender padrão (ex: Bradesco):     " SMS_SENDER_1_LABEL
-  read -rp  "  Label sender alternativo (ex: Livelo):  " SMS_SENDER_2_LABEL
-  read -rp  "  Link para placeholder {{link}}:          " SMS_LINK
+# --- Carregar .env existente ---
+if [ -f "$ENV_FILE" ]; then
+  log_info "Arquivo .env detectado. Carregando configurações atuais..."
+  # Exporta variáveis temporariamente para o script ler
+  export $(grep -v '^#' "$ENV_FILE" | xargs)
+fi
 
-  cat > .env <<EOF
-# Gerado por setup.sh em $(date '+%Y-%m-%d %H:%M:%S')
+log_step "1. CONFIGURAÇÕES SUPABASE"
+ask "Project ID" "SUPABASE_PROJECT_ID" "$VITE_SUPABASE_PROJECT_ID" "false"
+ask "Anon/Public Key" "SUPABASE_PUBLISHABLE_KEY" "$VITE_SUPABASE_PUBLISHABLE_KEY" "false"
+ask "Service Role Key" "SUPABASE_SERVICE_ROLE_KEY" "$SUPABASE_SERVICE_ROLE_KEY" "true"
+ask "Database Password" "SUPABASE_DB_PASSWORD" "$SUPABASE_DB_PASSWORD" "true"
 
+log_step "2. SEGURANÇA & ANTIBOT"
+ask "Turnstile Site Key" "TURNSTILE_SITE_KEY" "$VITE_TURNSTILE_SITE_KEY" "false"
+ask "Turnstile Secret Key" "TURNSTILE_SECRET_KEY" "$TURNSTILE_SECRET_KEY" "false"
+ask "ZenRows API Key" "ZENROWS_API_KEY" "$ZENROWS_API_KEY" "false"
+ask "IPInfo Token" "IPINFO_TOKEN" "$IPINFO_TOKEN" "false"
+
+log_step "3. MENSAGERIA (RISENEW)"
+ask "Risenew API Key 1" "RISENEW_API_KEY" "$RISENEW_API_KEY" "true"
+ask "Risenew API Secret 1" "RISENEW_API_SECRET" "$RISENEW_API_SECRET" "true"
+ask "Risenew Sender 1" "RISENEW_SENDER" "$RISENEW_SENDER" "false"
+ask "Risenew API Key 2" "RISENEW_API_KEY_2" "$RISENEW_API_KEY_2" "true"
+ask "Risenew API Secret 2" "RISENEW_API_SECRET_2" "$RISENEW_API_SECRET_2" "true"
+ask "Risenew Sender 2" "RISENEW_SENDER_2" "$RISENEW_SENDER_2" "false"
+
+log_step "4. MARKETING & TRACKING"
+ask "Meta Pixel ID" "META_PIXEL_ID" "$META_PIXEL_ID" "false"
+ask "Meta CAPI Token" "META_CAPI_ACCESS_TOKEN" "$META_CAPI_ACCESS_TOKEN" "true"
+
+# --- Geração do Arquivo .env ---
+cat > "$ENV_FILE" <<EOF
+# Gerado automaticamente em $(date)
 VITE_SUPABASE_PROJECT_ID=${SUPABASE_PROJECT_ID}
 VITE_SUPABASE_PUBLISHABLE_KEY=${SUPABASE_PUBLISHABLE_KEY}
-VITE_SUPABASE_URL=${SUPABASE_URL}
+VITE_SUPABASE_URL=https://${SUPABASE_PROJECT_ID}.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
 SUPABASE_DB_PASSWORD=${SUPABASE_DB_PASSWORD}
+
 VITE_TURNSTILE_SITE_KEY=${TURNSTILE_SITE_KEY}
-VITE_META_PIXEL_ID=${META_PIXEL_ID_VITE}
-VITE_SMS_SENDER_1_LABEL=${SMS_SENDER_1_LABEL}
-VITE_SMS_SENDER_2_LABEL=${SMS_SENDER_2_LABEL}
-VITE_SMS_LINK=${SMS_LINK}
+TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY}
+ZENROWS_API_KEY=${ZENROWS_API_KEY}
+IPINFO_TOKEN=${IPINFO_TOKEN}
 
 RISENEW_API_KEY=${RISENEW_API_KEY}
 RISENEW_API_SECRET=${RISENEW_API_SECRET}
@@ -71,129 +109,90 @@ RISENEW_SENDER=${RISENEW_SENDER}
 RISENEW_API_KEY_2=${RISENEW_API_KEY_2}
 RISENEW_API_SECRET_2=${RISENEW_API_SECRET_2}
 RISENEW_SENDER_2=${RISENEW_SENDER_2}
-TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY}
-IPINFO_TOKEN=${IPINFO_TOKEN}
-ZENROWS_API_KEY=${ZENROWS_API_KEY}
+
 META_PIXEL_ID=${META_PIXEL_ID}
 META_CAPI_ACCESS_TOKEN=${META_CAPI_ACCESS_TOKEN}
 EOF
 
-  echo ""
-  echo "✓ .env criado"
-  echo ""
-}
+log_success "Arquivo .env atualizado com sucesso."
 
-if [ -f .env ]; then
-  read -rp ".env já existe. Reconfigurar? (s/N): " RECONFIG
-  [[ "$RECONFIG" =~ ^[Ss]$ ]] && collect_env
-else
-  collect_env
-fi
-
-# ── Lê project ID ─────────────────────────────────────────────────────────────
-
-PROJECT_ID=$(grep -E '^VITE_SUPABASE_PROJECT_ID=' .env | cut -d '=' -f2 | tr -d '[:space:]"')
-[ -z "$PROJECT_ID" ] && echo "ERRO: VITE_SUPABASE_PROJECT_ID não encontrado" && exit 1
-
-DB_PASSWORD=$(grep -E '^SUPABASE_DB_PASSWORD=' .env | cut -d '=' -f2-)
-[ -z "$DB_PASSWORD" ] && echo "ERRO: SUPABASE_DB_PASSWORD não encontrado" && exit 1
-
+# --- Execução de Comandos Supabase ---
 SUPABASE="npx supabase"
 
-# ── 1. Link ───────────────────────────────────────────────────────────────────
+log_step "DEPLOY: SUPABASE INFRA"
 
-echo "[ 1/6 ] Conectando ao projeto Supabase..."
-$SUPABASE link --project-ref "$PROJECT_ID" --database-password "$DB_PASSWORD"
-echo ""
+log_info "Vinculando projeto..."
+$SUPABASE link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
 
-# ── 2. Secrets ────────────────────────────────────────────────────────────────
+log_info "Sincronizando Secrets (Edge Functions)..."
+$SUPABASE secrets set \
+  SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY" \
+  TURNSTILE_SECRET_KEY="$TURNSTILE_SECRET_KEY" \
+  ZENROWS_API_KEY="$ZENROWS_API_KEY" \
+  IPINFO_TOKEN="$IPINFO_TOKEN" \
+  RISENEW_API_KEY="$RISENEW_API_KEY" \
+  RISENEW_API_SECRET="$RISENEW_API_SECRET" \
+  RISENEW_SENDER="$RISENEW_SENDER" \
+  RISENEW_API_KEY_2="$RISENEW_API_KEY_2" \
+  RISENEW_API_SECRET_2="$RISENEW_API_SECRET_2" \
+  RISENEW_SENDER_2="$RISENEW_SENDER_2" \
+  META_CAPI_ACCESS_TOKEN="$META_CAPI_ACCESS_TOKEN" \
+  --project-ref "$SUPABASE_PROJECT_ID"
 
-echo "[ 2/6 ] Configurando secrets..."
+log_info "Pushing Database Migrations..."
+$SUPABASE db push --password "$SUPABASE_DB_PASSWORD"
 
-set_secret() {
-  local key=$1
-  local val
-  val=$(grep -E "^${key}=" .env | cut -d '=' -f2 | tr -d '[:space:]"')
-  [ -n "$val" ] && $SUPABASE secrets set "${key}=${val}" --project-ref "$PROJECT_ID"
-}
+log_info "Deploying Edge Functions..."
+$SUPABASE functions deploy --project-ref "$SUPABASE_PROJECT_ID"
 
-set_secret RISENEW_API_KEY
-set_secret RISENEW_API_SECRET
-set_secret RISENEW_SENDER
-set_secret RISENEW_API_KEY_2
-set_secret RISENEW_API_SECRET_2
-set_secret RISENEW_SENDER_2
-set_secret TURNSTILE_SECRET_KEY
-set_secret IPINFO_TOKEN
-set_secret ZENROWS_API_KEY
-set_secret META_PIXEL_ID
-set_secret META_CAPI_ACCESS_TOKEN
-echo ""
-
-# ── 3. Migrations ─────────────────────────────────────────────────────────────
-
-echo "[ 3/6 ] Aplicando migrations..."
-$SUPABASE db push --password "$DB_PASSWORD"
-echo ""
-
-# ── 4. Edge functions ─────────────────────────────────────────────────────────
-
-echo "[ 4/6 ] Deploy das edge functions..."
-$SUPABASE functions deploy --project-ref "$PROJECT_ID"
-echo ""
-
-# ── 5. Build ──────────────────────────────────────────────────────────────────
-
-echo "[ 5/6 ] Buildando o frontend..."
+log_step "DEPLOY: FRONTEND BUILD"
 if command -v bun &> /dev/null; then
+  log_info "Usando Bun para instalação e build..."
   bun install && bun run build
 else
+  log_info "Usando NPM para instalação e build..."
   npm install && npm run build
 fi
-echo ""
 
-# ── 6. Autenticação /admin via Basic Auth ─────────────────────────────────────
+log_step "DEPLOY: APACHE / ADMIN SECURITY"
+ask "Caminho de deploy (ex: /var/www/html/dist)" "DEPLOY_PATH" "/var/www/dist" "false"
+ask "Usuário Admin" "HT_USER" "admin" "false"
+ask "Senha Admin" "HT_PASS" "" "true"
 
-echo "[ 6/6 ] Configurando autenticação do painel /admin..."
-echo ""
-echo "  Caminho absoluto onde dist/ será servido pelo Apache"
-echo "  Exemplo: /var/www/inss/mitt/dist"
-read -rp  "  Caminho de deploy: " DEPLOY_PATH
-read -rp  "  Usuário admin:     " HTPASSWD_USER
-read -rsp "  Senha admin:       " HTPASSWD_PASS
-echo ""
-
-# Gera hash compatível com Apache (APR1-MD5, disponível via openssl)
+# Gerar .htpasswd
 if command -v htpasswd &> /dev/null; then
-  HTPASSWD_HASH=$(htpasswd -bnBC 10 "" "$HTPASSWD_PASS" | tr -d ':\n' | sed 's/^/\$2y\$10\$/')
-  # fallback — usa openssl se htpasswd retornar formato inesperado
-  HTPASSWD_HASH=$(htpasswd -nbm "$HTPASSWD_USER" "$HTPASSWD_PASS" | cut -d: -f2)
-  echo "${HTPASSWD_USER}:${HTPASSWD_HASH}" > dist/.htpasswd
+  htpasswd -bc dist/.htpasswd "$HT_USER" "$HT_PASS"
 else
-  HTPASSWD_HASH=$(openssl passwd -apr1 "$HTPASSWD_PASS")
-  echo "${HTPASSWD_USER}:${HTPASSWD_HASH}" > dist/.htpasswd
+  HT_HASH=$(openssl passwd -apr1 "$HT_PASS")
+  echo "${HT_USER}:${HT_HASH}" > dist/.htpasswd
 fi
 
-# Appenda bloco de auth ao .htaccess gerado pelo build
-cat >> dist/.htaccess <<EOF
-
-# ── Proteção do painel admin ──────────────────────────────────────────────────
+# Criar .htaccess profissional
+cat > dist/.htaccess <<EOF
+Options -Indexes
+DirectoryIndex index.html
 
 <Files ".htpasswd">
-  Require all denied
+    Require all denied
 </Files>
 
+# Proteção do Painel Admin
 <If "%{REQUEST_URI} =~ m#^/admin#">
-  AuthType Basic
-  AuthName "Painel Admin"
-  AuthUserFile ${DEPLOY_PATH}/.htpasswd
-  Require valid-user
+    AuthType Basic
+    AuthName "Restricted Access"
+    AuthUserFile ${DEPLOY_PATH}/.htpasswd
+    Require valid-user
 </If>
+
+# SPA Routing (Fallback para index.html)
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [L]
 EOF
 
-echo ""
-echo "✓ dist/.htpasswd criado"
-echo "✓ dist/.htaccess atualizado com AuthUserFile ${DEPLOY_PATH}/.htpasswd"
-echo ""
-echo "=== Pronto! Sirva a pasta dist/ em ${DEPLOY_PATH} com seu Apache. ==="
-echo ""
+log_success "Configuração concluída!"
+echo -e "\n${BOLD}Próximos passos:${NC}"
+echo -e "1. Mova a pasta ${CYAN}dist/${NC} para ${YELLOW}${DEPLOY_PATH}${NC}"
+echo -e "2. Certifique-se que o Apache tem permissão de leitura."
+echo -e "3. Acesse o painel em: ${GREEN}https://seu-dominio.com/admin${NC}\n"
