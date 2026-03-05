@@ -189,9 +189,14 @@ export default function AdminAccessPage() {
   };
 
   const handleClearNoCpf = async () => {
-    const { count } = await sessionRepository.deleteWithoutCpf();
-    toast.success(count > 0 ? `${count} acesso(s) sem CPF removido(s)` : "Nenhum acesso sem CPF encontrado");
-    fetchSessions();
+    try {
+      const { count } = await sessionRepository.deleteWithoutCpf();
+      toast.success(count > 0 ? `${count} acesso(s) sem CPF removido(s)` : "Nenhum acesso sem CPF encontrado");
+      fetchSessions();
+    } catch (err) {
+      console.error("Clear sessions error:", err);
+      toast.error("Erro ao limpar acessos sem CPF");
+    }
   };
 
   return (
