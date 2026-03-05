@@ -35,6 +35,64 @@ check_dep "curl"
 ENV_FILE=".env"
 MIGRATION_DIR="supabase/migrations"
 
+# ── Modo: nova instalação ou atualização ──────────────────────────────────────
+echo -e "${BOLD}Tipo de operação:${NC}"
+echo -e "  ${CYAN}1.${NC} Nova instalação"
+echo -e "  ${CYAN}2.${NC} Atualizar instalação existente (git pull + install + build)"
+echo ""
+read -rp "$(echo -e "${BOLD}Selecione [1/2]:${NC} ")" _MODE
+
+if [ "$_MODE" = "2" ]; then
+  log_step "ATUALIZAÇÃO"
+
+  check_dep "git"
+
+  # Detectar repositório git
+  if [ ! -d ".git" ]; then
+    log_error "Pasta atual não é um repositório git. Execute o script dentro do projeto."
+    exit 1
+  fi
+
+  # Verificar remote configurado
+  _remote=$(git remote get-url origin 2>/dev/null || echo "")
+  if [ -z "$_remote" ]; then
+    log_error "Nenhum remote 'origin' configurado."
+    exit 1
+  fi
+  log_info "Repositório: $_remote"
+
+  # Salvar branch atual
+  _branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+  log_info "Branch: $_branch"
+
+  # Pull
+  log_info "Baixando atualizações..."
+  git pull origin "$_branch"
+  log_success "Código atualizado."
+
+  # Install
+  log_step "INSTALAR DEPENDÊNCIAS"
+  if command -v bun &>/dev/null; then
+    log_info "Usando Bun..."
+    bun install
+  else
+    log_info "Usando NPM..."
+    npm install
+  fi
+  log_success "Dependências instaladas."
+
+  # Build
+  log_step "BUILD"
+  if command -v bun &>/dev/null; then
+    bun run build
+  else
+    npm run build
+  fi
+  log_success "Build concluído. dist/ pronto para deploy."
+  echo ""
+  exit 0
+fi
+
 # ── Input helper ──────────────────────────────────────────────────────────────
 ask() {
   local label=$1 var_name=$2 default_val=$3 is_secret=$4 input
