@@ -11,6 +11,8 @@ collect_env() {
   echo "Supabase → https://supabase.com/dashboard → Settings → API"
   read -rp  "  Project ID:          " SUPABASE_PROJECT_ID
   read -rp  "  Anon/public key:     " SUPABASE_PUBLISHABLE_KEY
+  read -rsp "  Database password:   " SUPABASE_DB_PASSWORD
+  echo ""
   SUPABASE_URL="https://${SUPABASE_PROJECT_ID}.supabase.co"
 
   echo ""
@@ -56,6 +58,7 @@ collect_env() {
 VITE_SUPABASE_PROJECT_ID=${SUPABASE_PROJECT_ID}
 VITE_SUPABASE_PUBLISHABLE_KEY=${SUPABASE_PUBLISHABLE_KEY}
 VITE_SUPABASE_URL=${SUPABASE_URL}
+SUPABASE_DB_PASSWORD=${SUPABASE_DB_PASSWORD}
 VITE_TURNSTILE_SITE_KEY=${TURNSTILE_SITE_KEY}
 VITE_META_PIXEL_ID=${META_PIXEL_ID_VITE}
 VITE_SMS_SENDER_1_LABEL=${SMS_SENDER_1_LABEL}
@@ -92,12 +95,15 @@ fi
 PROJECT_ID=$(grep -E '^VITE_SUPABASE_PROJECT_ID=' .env | cut -d '=' -f2 | tr -d '[:space:]"')
 [ -z "$PROJECT_ID" ] && echo "ERRO: VITE_SUPABASE_PROJECT_ID não encontrado" && exit 1
 
+DB_PASSWORD=$(grep -E '^SUPABASE_DB_PASSWORD=' .env | cut -d '=' -f2-)
+[ -z "$DB_PASSWORD" ] && echo "ERRO: SUPABASE_DB_PASSWORD não encontrado" && exit 1
+
 SUPABASE="npx supabase"
 
 # ── 1. Link ───────────────────────────────────────────────────────────────────
 
 echo "[ 1/6 ] Conectando ao projeto Supabase..."
-$SUPABASE link --project-ref "$PROJECT_ID"
+$SUPABASE link --project-ref "$PROJECT_ID" --database-password "$DB_PASSWORD"
 echo ""
 
 # ── 2. Secrets ────────────────────────────────────────────────────────────────
@@ -127,7 +133,7 @@ echo ""
 # ── 3. Migrations ─────────────────────────────────────────────────────────────
 
 echo "[ 3/6 ] Aplicando migrations..."
-$SUPABASE db push
+$SUPABASE db push --password "$DB_PASSWORD"
 echo ""
 
 # ── 4. Edge functions ─────────────────────────────────────────────────────────
