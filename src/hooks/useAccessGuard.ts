@@ -81,6 +81,7 @@ export function useAccessGuard(): AccessGuardResult {
         if (needsIpCheck) {
           try {
             const ipInfo: IpInfo = await edgeFunctionsService.getIpInfo();
+            if (!ipInfo.ip) throw new Error("empty ip response");
             const ip = ipInfo.ip ?? "";
             // Use ISO country code for list matching (geo.country_code = "BR", not "Brasil")
             const country = (ipInfo.geo?.country_code ?? "").toUpperCase();
@@ -142,7 +143,14 @@ export function useAccessGuard(): AccessGuardResult {
               }
             }
           } catch {
-            // IP check failed — fail open (allow access)
+            // IP check failed — se há allowedCountries configurado, bloqueia por segurança (fail closed)
+            if (allowedCountries.length > 0) {
+              const reason = "Verificação de acesso indisponível.";
+              await logBlock(reason);
+              setState({ allowed: false, loading: false, reason });
+              return;
+            }
+            // Sem restrição de países — fail open
           }
         }
 
