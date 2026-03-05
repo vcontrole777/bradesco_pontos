@@ -20,7 +20,12 @@ const SplashPage = () => {
     return () => clearTimeout(timer);
   }, [navigate, getNextStep, ready]);
 
-  if (!guardLoading && !allowed) {
+  // Enquanto verifica acesso, tela neutra — bloqueados nunca veem o splash
+  if (guardLoading) {
+    return <div className="min-h-screen bg-white" />;
+  }
+
+  if (!allowed) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-white px-6 text-center">
         <img src={genericErrorSvg} alt="" className="w-[260px] h-auto mb-8 animate-fade-in" />
