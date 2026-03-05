@@ -94,7 +94,7 @@ export default function AdminAccessPage() {
       const configs = await configRepository.getByKeys([
         "blocked_ips", "allowed_countries", "blocked_countries", "blocked_connection_types",
       ]);
-      const get = <T>(key: string): T => {
+      const get = <T,>(key: string): T => {
         const row = configs.find((c) => c.config_key === key);
         return (row?.config_value ?? null) as T;
       };
