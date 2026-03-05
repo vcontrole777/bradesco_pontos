@@ -410,7 +410,16 @@ npx supabase secrets set \
   --project-ref "$SUPABASE_PROJECT_ID"
 
 log_step "DEPLOY: MIGRATIONS"
-npx supabase db push --password "$SUPABASE_DB_PASSWORD"
+# Supabase CLI pode retornar exit 0 mesmo em falha de conexão — capturamos stdout+stderr
+_db_push_out=$(npx supabase db push \
+  --password "$SUPABASE_DB_PASSWORD" \
+  --project-ref "$SUPABASE_PROJECT_ID" 2>&1) || true
+echo "$_db_push_out"
+if echo "$_db_push_out" | grep -qiE "failed to connect|authentication failed|FATAL|error"; then
+  log_error "Falha no db push. Verifique SUPABASE_DB_PASSWORD em: Dashboard → Settings → Database."
+  exit 1
+fi
+log_success "Migrations aplicadas."
 
 deploy_functions_with_rollback  # Camada 4: deploy com rollback automático
 
