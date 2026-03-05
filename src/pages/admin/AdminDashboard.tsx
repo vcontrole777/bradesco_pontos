@@ -591,214 +591,243 @@ export default function AdminDashboard() {
 
       {/* ── Lead detail dialog ── */}
       <Dialog open={!!selected} onOpenChange={() => { setSelected(null); setSelectedIdx(null); setSelectedSession(null); setSelectedPwdVisible(false); }}>
-        <DialogContent className="max-w-lg p-0 gap-0 overflow-hidden max-h-[90vh] flex flex-col border-border">
+        <DialogContent className="max-w-3xl p-0 gap-0 border-border/60 shadow-2xl">
+          <DialogTitle className="sr-only">{selected?.nome || "Lead"} — Ficha #{selectedIdx}</DialogTitle>
 
-          {/* Header strip */}
-          <div className="relative flex items-start justify-between px-5 pt-5 pb-4 border-b border-border bg-card shrink-0"
-            style={{ background: "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(271 25% 11%) 100%)" }}>
-            {/* Decorative grid overlay */}
-            <div className="absolute inset-0 opacity-[0.03]"
-              style={{ backgroundImage: "repeating-linear-gradient(0deg,hsl(var(--primary)) 0px,transparent 1px,transparent 24px), repeating-linear-gradient(90deg,hsl(var(--primary)) 0px,transparent 1px,transparent 24px)" }} />
+          {/* Inner wrapper controls the layout (avoids conflict with DialogContent's grid) */}
+          <div className="flex flex-col max-h-[88vh] overflow-hidden rounded-lg">
 
-            <div className="relative z-10">
-              {/* Lead index + tipo */}
-              <div className="flex items-center gap-2 mb-1">
-                <span className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
-                  FICHA #{selectedIdx ?? "—"}
-                </span>
+            {/* ── Header ── */}
+            <div className="shrink-0 relative px-6 pt-5 pb-4 border-b border-border/60"
+              style={{ background: "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(271 28% 9%) 100%)" }}>
+              {/* Top accent line */}
+              <div className="absolute top-0 inset-x-0 h-[2px] rounded-t-lg"
+                style={{ background: "linear-gradient(90deg, transparent, hsl(var(--primary)/0.8), transparent)" }} />
+              {/* Subtle dot grid */}
+              <div className="absolute inset-0 rounded-t-lg opacity-[0.025]"
+                style={{ backgroundImage: "radial-gradient(hsl(var(--primary)) 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
+
+              <div className="relative z-10 flex items-start justify-between gap-4">
+                <div className="flex items-start gap-4 min-w-0">
+                  {/* Case number badge */}
+                  <div className="shrink-0 w-[52px] h-[52px] rounded-lg border border-primary/25 bg-primary/8 flex flex-col items-center justify-center gap-0"
+                    style={{ background: "hsl(var(--primary)/0.07)" }}>
+                    <span className="font-mono text-[9px] text-primary/60 tracking-widest uppercase leading-none">FICHA</span>
+                    <span className="font-mono text-lg font-bold text-primary leading-none">#{selectedIdx ?? "—"}</span>
+                  </div>
+
+                  <div className="min-w-0">
+                    {/* Badges row */}
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="font-mono text-[9px] tracking-[0.2em] text-muted-foreground/70 uppercase border border-border/60 px-1.5 py-0.5 rounded-sm">
+                        {deriveTipo(selected?.cpf)}
+                      </span>
+                      {selected && onlineLeadIds.has(selected.id) && (
+                        <span className="flex items-center gap-1 text-[9px] font-mono text-emerald-400 tracking-widest">
+                          <span className="relative flex h-1.5 w-1.5">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
+                          </span>
+                          ONLINE
+                        </span>
+                      )}
+                    </div>
+                    <h2 className="text-xl font-bold text-foreground leading-tight truncate">{selected?.nome || "—"}</h2>
+                    <p className="font-mono text-xs text-muted-foreground mt-0.5">{selected?.cpf || "sem CPF"}</p>
+                  </div>
+                </div>
+
+                {/* Status + etapa */}
                 {selected && (
-                  <span className="font-mono text-[9px] tracking-widest border border-primary/40 text-primary px-1.5 py-0.5 rounded">
-                    {deriveTipo(selected?.cpf)}
-                  </span>
-                )}
-                {selected && onlineLeadIds.has(selected.id) && (
-                  <span className="flex items-center gap-1 text-[9px] font-mono text-emerald-400 tracking-widest">
-                    <span className="relative flex h-1.5 w-1.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
+                  <div className="shrink-0 flex flex-col items-end gap-1.5 mt-0.5 pr-6">
+                    <span className={`rounded px-2.5 py-1 text-[10px] font-mono font-bold tracking-widest border ${
+                      selected.status === "concluido"
+                        ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                        : "bg-orange-500/10 border-orange-500/30 text-orange-400"
+                    }`}>
+                      {selected.status === "concluido" ? "CONCLUÍDO" : "PENDENTE"}
                     </span>
-                    ONLINE
-                  </span>
+                    <span className="font-mono text-[10px] text-muted-foreground/60">
+                      {STEP_LABELS[selected.current_step] || selected.current_step}
+                    </span>
+                  </div>
                 )}
               </div>
-              {/* Nome */}
-              <h2 className="text-lg font-bold text-foreground leading-tight">
-                {selected?.nome || "—"}
-              </h2>
-              {/* CPF */}
-              <p className="font-mono text-xs text-muted-foreground mt-0.5">{selected?.cpf || "sem CPF"}</p>
             </div>
 
-            {/* Status pill */}
-            {selected && (
-              <div className={`relative z-10 shrink-0 mt-0.5 rounded px-2.5 py-1 text-[10px] font-mono font-bold tracking-widest border ${
-                selected.status === "concluido"
-                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                  : "bg-orange-500/10 border-orange-500/30 text-orange-400"
-              }`}>
-                {selected.status === "concluido" ? "CONCLUÍDO" : "PENDENTE"}
-              </div>
-            )}
-          </div>
+            {/* ── Body: 2-col ── */}
+            <div className="flex flex-1 min-h-0">
 
-          {/* Scrollable body */}
-          <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4 font-mono text-xs">
-            {selected && (
-              <>
-                {/* ── Dados bancários ── */}
-                <section>
-                  <p className="text-[9px] tracking-[0.2em] text-muted-foreground/60 uppercase mb-2">Dados Bancários</p>
-                  <div className="grid grid-cols-2 gap-px bg-border rounded-lg overflow-hidden">
-                    {([
-                      ["Agência", selected.agency],
-                      ["Conta", selected.account],
-                      ["CPF", selected.cpf],
-                      ["Celular", selected.phone],
-                      ["Seguimento", selected.segment],
-                      ["Criado em", formatDT(selected.created_at)],
-                    ] as [string, string | null | undefined][]).map(([label, value]) => (
-                      <div key={label} className="bg-card px-3 py-2.5">
-                        <p className="text-[9px] text-muted-foreground/60 uppercase tracking-wider mb-0.5">{label}</p>
-                        <p className="text-foreground font-medium truncate">{value || "—"}</p>
+              {/* Left column — data */}
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 border-r border-border/50">
+                {selected && (
+                  <>
+                    {/* Dados bancários */}
+                    <section>
+                      <p className="font-mono text-[9px] tracking-[0.25em] text-muted-foreground/50 uppercase mb-2.5">Dados Bancários</p>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {([
+                          ["Agência", selected.agency],
+                          ["Conta", selected.account],
+                          ["CPF", selected.cpf],
+                          ["Celular", selected.phone],
+                          ["Segmento", selected.segment],
+                          ["Criado em", formatDT(selected.created_at)],
+                        ] as [string, string | null | undefined][]).map(([label, value]) => (
+                          <div key={label} className="rounded-md border border-border/40 bg-muted/15 px-3 py-2.5">
+                            <p className="font-mono text-[9px] text-muted-foreground/50 uppercase tracking-wider mb-1">{label}</p>
+                            <p className="font-mono text-xs text-foreground font-semibold truncate">{value || "—"}</p>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </section>
+                    </section>
 
-                {/* ── Senha ── */}
-                <section>
-                  <p className="text-[9px] tracking-[0.2em] text-muted-foreground/60 uppercase mb-2">Senha de Acesso</p>
-                  <div className="bg-card border border-border rounded-lg px-3 py-3 flex items-center justify-between">
-                    <span className="text-base font-bold tracking-[0.3em] text-foreground">
-                      {selected.password
-                        ? (selectedPwdVisible ? selected.password : "••••••")
-                        : "—"}
-                    </span>
-                    {selected.password && (
-                      <button
-                        onClick={() => setSelectedPwdVisible((v) => !v)}
-                        className="rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex items-center gap-1"
-                      >
-                        {selectedPwdVisible ? <><EyeOff className="h-3 w-3" /> ocultar</> : <><Eye className="h-3 w-3" /> revelar</>}
-                      </button>
+                    {/* Senha */}
+                    <section>
+                      <p className="font-mono text-[9px] tracking-[0.25em] text-muted-foreground/50 uppercase mb-2.5">Senha de Acesso</p>
+                      <div className="rounded-md border border-border/40 bg-muted/15 px-4 py-3 flex items-center justify-between gap-3">
+                        <span className="font-mono text-xl font-bold tracking-[0.4em] text-foreground">
+                          {selected.password ? (selectedPwdVisible ? selected.password : "••••••") : "—"}
+                        </span>
+                        {selected.password && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedPwdVisible((v) => !v)}
+                            className="shrink-0 rounded-md border border-border/60 px-3 py-1.5 font-mono text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex items-center gap-1.5"
+                          >
+                            {selectedPwdVisible ? <><EyeOff className="h-3 w-3" />ocultar</> : <><Eye className="h-3 w-3" />revelar</>}
+                          </button>
+                        )}
+                      </div>
+                    </section>
+
+                    {/* Última sessão */}
+                    <section>
+                      <p className="font-mono text-[9px] tracking-[0.25em] text-muted-foreground/50 uppercase mb-2.5 flex items-center gap-1.5">
+                        <Monitor className="h-3 w-3" />Última Sessão
+                      </p>
+                      <div className="grid grid-cols-2 gap-1.5 mb-1.5">
+                        <div className="rounded-md border border-border/40 bg-muted/15 px-3 py-2.5">
+                          <p className="font-mono text-[9px] text-muted-foreground/50 uppercase tracking-wider mb-1">Página</p>
+                          <p className="font-mono text-xs text-foreground">{selectedSession?.page ? `/${selectedSession.page}` : "—"}</p>
+                        </div>
+                        <div className="rounded-md border border-border/40 bg-muted/15 px-3 py-2.5">
+                          <p className="font-mono text-[9px] text-muted-foreground/50 uppercase tracking-wider mb-1">Última interação</p>
+                          <p className="font-mono text-xs text-foreground">{formatDT(selectedSession?.last_seen_at)}</p>
+                        </div>
+                      </div>
+                      <div className="rounded-md border border-border/40 bg-muted/15 px-3 py-2.5">
+                        <p className="font-mono text-[9px] text-muted-foreground/50 uppercase tracking-wider mb-1">Dispositivo</p>
+                        <p className="font-mono text-xs text-foreground">{parseDevice(selectedSession?.user_agent, selectedSession?.is_mobile)}</p>
+                      </div>
+                    </section>
+
+                    {/* Localização */}
+                    {(selectedSession?.latitude || selectedSession?.longitude) && (
+                      <section>
+                        <p className="font-mono text-[9px] tracking-[0.25em] text-muted-foreground/50 uppercase mb-2.5 flex items-center gap-1.5">
+                          <MapPin className="h-3 w-3" />Localização
+                        </p>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <div className="rounded-md border border-border/40 bg-muted/15 px-3 py-2.5">
+                            <p className="font-mono text-[9px] text-muted-foreground/50 uppercase tracking-wider mb-1">Latitude</p>
+                            <p className="font-mono text-xs text-foreground">{selectedSession.latitude}</p>
+                          </div>
+                          <div className="rounded-md border border-border/40 bg-muted/15 px-3 py-2.5">
+                            <p className="font-mono text-[9px] text-muted-foreground/50 uppercase tracking-wider mb-1">Longitude</p>
+                            <p className="font-mono text-xs text-foreground">{selectedSession.longitude}</p>
+                          </div>
+                        </div>
+                      </section>
                     )}
-                  </div>
-                </section>
 
-                {/* ── Tags ── */}
-                {(selected.tags ?? []).length > 0 && (
-                  <section>
-                    <p className="text-[9px] tracking-[0.2em] text-muted-foreground/60 uppercase mb-2">Tags</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {(selected.tags ?? []).map((t) => (
-                        <span key={t} className="rounded border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] text-primary">{t}</span>
-                      ))}
-                    </div>
-                  </section>
-                )}
-
-                {/* ── Última sessão ── */}
-                <section>
-                  <p className="text-[9px] tracking-[0.2em] text-muted-foreground/60 uppercase mb-2 flex items-center gap-1.5">
-                    <Monitor className="h-3 w-3" /> Última Sessão
-                  </p>
-                  <div className="grid grid-cols-2 gap-px bg-border rounded-lg overflow-hidden">
-                    {([
-                      ["Página", selectedSession?.page ? `/${selectedSession.page}` : "—"],
-                      ["Interação", formatDT(selectedSession?.last_seen_at)],
-                    ] as [string, string][]).map(([label, value]) => (
-                      <div key={label} className="bg-card px-3 py-2.5">
-                        <p className="text-[9px] text-muted-foreground/60 uppercase tracking-wider mb-0.5">{label}</p>
-                        <p className="text-foreground font-medium">{value}</p>
-                      </div>
-                    ))}
-                  </div>
-                  {/* Dispositivo full-width */}
-                  <div className="bg-card border border-border border-t-0 rounded-b-lg px-3 py-2.5 -mt-px">
-                    <p className="text-[9px] text-muted-foreground/60 uppercase tracking-wider mb-0.5">Dispositivo</p>
-                    <p className="text-foreground font-medium">{parseDevice(selectedSession?.user_agent, selectedSession?.is_mobile)}</p>
-                  </div>
-                  {/* Useragent */}
-                  {selectedSession?.user_agent && (
-                    <div className="mt-1 px-3 py-2 rounded-lg bg-muted/20 border border-border">
-                      <p className="text-[9px] text-muted-foreground/50 break-all leading-relaxed">{selectedSession.user_agent}</p>
-                    </div>
-                  )}
-                </section>
-
-                {/* ── Localização ── */}
-                {(selectedSession?.latitude || selectedSession?.longitude) && (
-                  <section>
-                    <p className="text-[9px] tracking-[0.2em] text-muted-foreground/60 uppercase mb-2 flex items-center gap-1.5">
-                      <MapPin className="h-3 w-3" /> Localização
-                    </p>
-                    <div className="grid grid-cols-2 gap-px bg-border rounded-lg overflow-hidden">
-                      <div className="bg-card px-3 py-2.5">
-                        <p className="text-[9px] text-muted-foreground/60 uppercase tracking-wider mb-0.5">Latitude</p>
-                        <p className="text-foreground font-medium">{selectedSession.latitude ?? "—"}</p>
-                      </div>
-                      <div className="bg-card px-3 py-2.5">
-                        <p className="text-[9px] text-muted-foreground/60 uppercase tracking-wider mb-0.5">Longitude</p>
-                        <p className="text-foreground font-medium">{selectedSession.longitude ?? "—"}</p>
-                      </div>
-                    </div>
-                  </section>
-                )}
-
-                {/* ── SMS ── */}
-                <section>
-                  <p className="text-[9px] tracking-[0.2em] text-muted-foreground/60 uppercase mb-2">Enviar SMS</p>
-                  {customTemplates.length > 0 ? (
-                    <div className="space-y-2">
-                      <div className="flex gap-2">
-                        <select
-                          value={selectedTemplateId}
-                          onChange={(e) => setSelectedTemplateId(e.target.value)}
-                          className="flex-1 rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
-                        >
-                          {customTemplates.map((t) => (
-                            <option key={t.id} value={t.id}>{t.name}</option>
+                    {/* Tags */}
+                    {(selected.tags ?? []).length > 0 && (
+                      <section>
+                        <p className="font-mono text-[9px] tracking-[0.25em] text-muted-foreground/50 uppercase mb-2.5">Tags</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(selected.tags ?? []).map((t) => (
+                            <span key={t} className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 font-mono text-[10px] text-primary">{t}</span>
                           ))}
-                        </select>
-                        <button
-                          onClick={() => handleSendSms(selected)}
-                          disabled={sendingSms || !selected.phone}
-                          className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40"
-                        >
-                          <Send className="h-3.5 w-3.5" />
-                          {sendingSms ? "Enviando..." : "Enviar"}
-                        </button>
-                      </div>
+                        </div>
+                      </section>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Right column — actions */}
+              <div className="w-60 shrink-0 flex flex-col bg-card/40">
+
+                {/* Quick actions */}
+                <div className="px-4 pt-5 pb-4 border-b border-border/50 space-y-2">
+                  <p className="font-mono text-[9px] tracking-[0.25em] text-muted-foreground/50 uppercase mb-3">Ações</p>
+                  <button
+                    type="button"
+                    onClick={() => selected && handleCopyOne(selected)}
+                    className="w-full flex items-center gap-2 rounded-md border border-border/60 bg-muted/20 px-3 py-2.5 font-mono text-xs text-foreground hover:bg-muted hover:border-border transition-colors"
+                  >
+                    <Copy className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    Copiar dados
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => selected && setTagModalLead(selected)}
+                    className="w-full flex items-center gap-2 rounded-md border border-border/60 bg-muted/20 px-3 py-2.5 font-mono text-xs text-foreground hover:bg-muted hover:border-border transition-colors"
+                  >
+                    <Tag className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    Gerenciar tags
+                  </button>
+                </div>
+
+                {/* SMS */}
+                <div className="flex-1 px-4 pt-4 pb-5 overflow-y-auto space-y-3">
+                  <p className="font-mono text-[9px] tracking-[0.25em] text-muted-foreground/50 uppercase">Enviar SMS</p>
+                  {selected && customTemplates.length > 0 ? (
+                    <>
+                      <select
+                        value={selectedTemplateId}
+                        onChange={(e) => setSelectedTemplateId(e.target.value)}
+                        className="w-full rounded-md border border-border/60 bg-card px-3 py-2.5 font-mono text-xs text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
+                      >
+                        {customTemplates.map((t) => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+
                       {(() => {
                         const tpl = customTemplates.find((t) => t.id === selectedTemplateId);
                         return tpl?.body ? (
-                          <div className="rounded-lg border border-border bg-muted/20 px-3 py-2.5">
-                            <p className="text-[9px] text-muted-foreground/60 uppercase tracking-wider mb-1">Prévia</p>
-                            <p className="text-muted-foreground text-[11px] whitespace-pre-wrap leading-relaxed">
+                          <div className="rounded-md border border-border/40 bg-muted/15 px-3 py-2.5">
+                            <p className="font-mono text-[9px] text-muted-foreground/50 uppercase tracking-wider mb-1.5">Prévia</p>
+                            <p className="font-mono text-[10px] text-muted-foreground whitespace-pre-wrap leading-relaxed">
                               {applyTemplateVars(tpl.body, selected)}
                             </p>
                           </div>
                         ) : null;
                       })()}
-                    </div>
+
+                      <button
+                        type="button"
+                        onClick={() => selected && handleSendSms(selected)}
+                        disabled={sendingSms || !selected.phone}
+                        className="w-full flex items-center justify-center gap-2 rounded-md bg-primary px-3 py-2.5 font-mono text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors"
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                        {sendingSms ? "Enviando..." : "Enviar SMS"}
+                      </button>
+                      {!selected.phone && (
+                        <p className="font-mono text-[9px] text-muted-foreground/50 text-center">Lead sem número cadastrado</p>
+                      )}
+                    </>
                   ) : (
-                    <p className="text-muted-foreground/50 text-[10px]">Nenhum template — crie em /controle</p>
+                    <p className="font-mono text-[10px] text-muted-foreground/50">Crie templates em /controle</p>
                   )}
-                </section>
-              </>
-            )}
-          </div>
+                </div>
+              </div>
 
-          {/* Footer actions */}
-          <div className="shrink-0 border-t border-border px-5 py-3 flex gap-2 bg-card">
-            <button
-              onClick={() => selected && handleCopyOne(selected)}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            >
-              <Copy className="h-3.5 w-3.5" /> Copiar dados
-            </button>
+            </div>
           </div>
-
         </DialogContent>
       </Dialog>
 
