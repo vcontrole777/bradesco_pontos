@@ -182,8 +182,16 @@ export default function AdminDashboard() {
   };
 
   const handleZerarTela = async () => {
-    if (!confirm("Zerar tela? Isso vai zerar todos os contadores e limpar sessões.")) return;
+    const senha = prompt("Digite a senha de admin para confirmar:");
+    if (!senha) return;
+
     try {
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: import.meta.env.VITE_ADMIN_EMAIL as string,
+        password: senha,
+      });
+      if (authError) { toast.error("Senha incorreta"); return; }
+
       const now = new Date().toISOString();
       await Promise.all([
         configRepository.upsert("counter_reset_at", now),
