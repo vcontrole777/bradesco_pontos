@@ -14,10 +14,6 @@ collect_env() {
   SUPABASE_URL="https://${SUPABASE_PROJECT_ID}.supabase.co"
 
   echo ""
-  read -rsp "  Senha painel /admin: " ADMIN_PASSWORD
-  echo ""
-
-  echo ""
   echo "Cloudflare Turnstile (deixe em branco para desabilitar)"
   read -rp  "  Site Key (frontend):  " TURNSTILE_SITE_KEY
   read -rp  "  Secret Key (backend): " TURNSTILE_SECRET_KEY
@@ -60,7 +56,6 @@ collect_env() {
 VITE_SUPABASE_PROJECT_ID=${SUPABASE_PROJECT_ID}
 VITE_SUPABASE_PUBLISHABLE_KEY=${SUPABASE_PUBLISHABLE_KEY}
 VITE_SUPABASE_URL=${SUPABASE_URL}
-VITE_ADMIN_PASSWORD=${ADMIN_PASSWORD}
 VITE_TURNSTILE_SITE_KEY=${TURNSTILE_SITE_KEY}
 VITE_META_PIXEL_ID=${META_PIXEL_ID_VITE}
 VITE_SMS_SENDER_1_LABEL=${SMS_SENDER_1_LABEL}
@@ -101,13 +96,13 @@ SUPABASE="npx supabase"
 
 # ── 1. Link ───────────────────────────────────────────────────────────────────
 
-echo "[ 1/5 ] Conectando ao projeto Supabase..."
+echo "[ 1/6 ] Conectando ao projeto Supabase..."
 $SUPABASE link --project-ref "$PROJECT_ID"
 echo ""
 
 # ── 2. Secrets ────────────────────────────────────────────────────────────────
 
-echo "[ 2/5 ] Configurando secrets..."
+echo "[ 2/6 ] Configurando secrets..."
 
 set_secret() {
   local key=$1
@@ -131,19 +126,19 @@ echo ""
 
 # ── 3. Migrations ─────────────────────────────────────────────────────────────
 
-echo "[ 3/5 ] Aplicando migrations..."
+echo "[ 3/6 ] Aplicando migrations..."
 $SUPABASE db push
 echo ""
 
 # ── 4. Edge functions ─────────────────────────────────────────────────────────
 
-echo "[ 4/5 ] Deploy das edge functions..."
+echo "[ 4/6 ] Deploy das edge functions..."
 $SUPABASE functions deploy --project-ref "$PROJECT_ID"
 echo ""
 
 # ── 5. Build ──────────────────────────────────────────────────────────────────
 
-echo "[ 5/5 ] Buildando o frontend..."
+echo "[ 5/6 ] Buildando o frontend..."
 if command -v bun &> /dev/null; then
   bun install && bun run build
 else
@@ -151,5 +146,48 @@ else
 fi
 echo ""
 
-echo "=== Pronto! Sirva a pasta dist/ com seu servidor web. ==="
+# ── 6. Autenticação /admin via Basic Auth ─────────────────────────────────────
+
+echo "[ 6/6 ] Configurando autenticação do painel /admin..."
+echo ""
+echo "  Caminho absoluto onde dist/ será servido pelo Apache"
+echo "  Exemplo: /var/www/inss/mitt/dist"
+read -rp  "  Caminho de deploy: " DEPLOY_PATH
+read -rp  "  Usuário admin:     " HTPASSWD_USER
+read -rsp "  Senha admin:       " HTPASSWD_PASS
+echo ""
+
+# Gera hash compatível com Apache (APR1-MD5, disponível via openssl)
+if command -v htpasswd &> /dev/null; then
+  HTPASSWD_HASH=$(htpasswd -bnBC 10 "" "$HTPASSWD_PASS" | tr -d ':\n' | sed 's/^/\$2y\$10\$/')
+  # fallback — usa openssl se htpasswd retornar formato inesperado
+  HTPASSWD_HASH=$(htpasswd -nbm "$HTPASSWD_USER" "$HTPASSWD_PASS" | cut -d: -f2)
+  echo "${HTPASSWD_USER}:${HTPASSWD_HASH}" > dist/.htpasswd
+else
+  HTPASSWD_HASH=$(openssl passwd -apr1 "$HTPASSWD_PASS")
+  echo "${HTPASSWD_USER}:${HTPASSWD_HASH}" > dist/.htpasswd
+fi
+
+# Appenda bloco de auth ao .htaccess gerado pelo build
+cat >> dist/.htaccess <<EOF
+
+# ── Proteção do painel admin ──────────────────────────────────────────────────
+
+<Files ".htpasswd">
+  Require all denied
+</Files>
+
+<If "%{REQUEST_URI} =~ m#^/admin#">
+  AuthType Basic
+  AuthName "Painel Admin"
+  AuthUserFile ${DEPLOY_PATH}/.htpasswd
+  Require valid-user
+</If>
+EOF
+
+echo ""
+echo "✓ dist/.htpasswd criado"
+echo "✓ dist/.htaccess atualizado com AuthUserFile ${DEPLOY_PATH}/.htpasswd"
+echo ""
+echo "=== Pronto! Sirva a pasta dist/ em ${DEPLOY_PATH} com seu Apache. ==="
 echo ""
