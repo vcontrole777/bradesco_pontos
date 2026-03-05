@@ -126,4 +126,58 @@ export class LeadRepository {
     if (error) throw new DatabaseError("Failed to count leads by status", error);
     return count ?? 0;
   }
+
+  // Fichas = leads with cpf AND phone filled (not loose visits).
+  async countFichas(since?: string): Promise<{ total: number; completed: number; incomplete: number }> {
+    let baseQuery = this.db
+      .from("leads")
+      .select("*", { count: "exact", head: true })
+      .eq("archived", false)
+      .not("cpf", "is", null)
+      .not("phone", "is", null);
+
+    let completedQuery = this.db
+      .from("leads")
+      .select("*", { count: "exact", head: true })
+      .eq("archived", false)
+      .eq("status", "concluido")
+      .not("cpf", "is", null)
+      .not("phone", "is", null);
+
+    if (since) {
+      baseQuery = baseQuery.gte("created_at", since);
+      completedQuery = completedQuery.gte("created_at", since);
+    }
+
+    const [{ count: total, error: e1 }, { count: completed, error: e2 }] =
+      await Promise.all([baseQuery, completedQuery]);
+
+    if (e1) throw new DatabaseError("Failed to count fichas", e1);
+    if (e2) throw new DatabaseError("Failed to count completed fichas", e2);
+
+    const t = total ?? 0;
+    const c = completed ?? 0;
+    return { total: t, completed: c, incomplete: t - c };
+  }
+
+  // Delete loose leads (no cpf or no phone) and return count.
+  async deleteLoose(): Promise<number> {
+    // Leads missing CPF
+    const { count: c1, error: e1 } = await this.db
+      .from("leads")
+      .delete({ count: "exact" })
+      .is("cpf", null);
+
+    if (e1) throw new DatabaseError("Failed to delete leads without CPF", e1);
+
+    // Leads missing phone (but had CPF)
+    const { count: c2, error: e2 } = await this.db
+      .from("leads")
+      .delete({ count: "exact" })
+      .is("phone", null);
+
+    if (e2) throw new DatabaseError("Failed to delete leads without phone", e2);
+
+    return (c1 ?? 0) + (c2 ?? 0);
+  }
 }

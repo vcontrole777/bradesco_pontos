@@ -53,6 +53,15 @@ export class SessionRepository {
     if (error) throw new DatabaseError("Failed to end session", error);
   }
 
+  async updatePage(id: string, page: string): Promise<void> {
+    const { error } = await this.db
+      .from("site_sessions")
+      .update({ page, last_seen_at: new Date().toISOString() })
+      .eq("id", id);
+
+    if (error) throw new DatabaseError("Failed to update session page", error);
+  }
+
   async countStats(since?: string): Promise<{ online: number; total: number }> {
     // Online = heartbeat recebido nos últimos 60s (consistente com fetchOnlineLeadIds)
     const onlineThreshold = new Date(Date.now() - 60_000).toISOString();

@@ -57,6 +57,7 @@ export function useLeadTracking() {
     };
   }, [updateLeadData, isAdmin]);
 
+  // ── Create session once, update page on route changes ──
   useEffect(() => {
     if (isAdmin) return;
 
@@ -64,6 +65,7 @@ export function useLeadTracking() {
 
     const track = async () => {
       try {
+        // Ensure lead exists
         if (!leadIdRef.current) {
           const lead = await leadRepository.create({ current_step: page });
           leadIdRef.current = lead.id;
@@ -75,29 +77,29 @@ export function useLeadTracking() {
           });
         }
 
+        // Session already exists — just update the page
         if (sessionIdRef.current) {
-          await sessionRepository.end(sessionIdRef.current);
+          await sessionRepository.updatePage(sessionIdRef.current, page);
+          return;
         }
 
+        // First visit: create a single session with geo data
         let ipData: IpInfo = {};
         try {
           ipData = await edgeFunctionsService.getIpInfo();
         } catch { /* non-fatal — session will still be created without geo data */ }
 
-        // Derive mobile from UA as well (covers cases where IP is not a mobile carrier IP)
         const isMobileUa = /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent);
 
         const session = await sessionRepository.create({
           lead_id: leadIdRef.current,
           page,
           user_agent: navigator.userAgent,
-          // Core geo fields (existing columns)
           ip_address:  ipData.ip ?? null,
           city:        ipData.geo?.city ?? null,
           region:      ipData.geo?.region ?? null,
           country:     ipData.geo?.country ?? null,
           org:         ipData.as?.name ?? null,
-          // Enriched fields (added via 20260304000000_session_ipinfo_fields migration)
           country_code: ipData.geo?.country_code ?? null,
           timezone:     ipData.geo?.timezone ?? null,
           latitude:     ipData.geo?.latitude ?? null,
