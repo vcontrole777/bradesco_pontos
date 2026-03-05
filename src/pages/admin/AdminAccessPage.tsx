@@ -35,6 +35,35 @@ function getAccessType(s: SessionWithLeadCpf, seq: number): string {
   return `${seq} - CLIENTE`;
 }
 
+// ── Block status computation ─────────────────────────────────────────────────
+interface AccessRules {
+  blockedIps: Set<string>;
+  allowedCountries: string[];
+  blockedCountries: string[];
+  blockedConnTypes: Record<string, boolean>;
+}
+
+function computeBlockStatus(s: SessionWithLeadCpf, rules: AccessRules): { blocked: boolean; reason: string } {
+  const ip = s.ip_address ?? "";
+  const country = (s.country_code ?? "").toUpperCase();
+
+  if (rules.blockedIps.has(ip))
+    return { blocked: true, reason: "IP bloqueado" };
+
+  if (rules.allowedCountries.length > 0 && country && !rules.allowedCountries.includes(country))
+    return { blocked: true, reason: `País: ${country}` };
+
+  if (rules.blockedCountries.includes(country) && country)
+    return { blocked: true, reason: `País bloqueado: ${country}` };
+
+  if (rules.blockedConnTypes.tor     && s.is_tor)     return { blocked: true, reason: "TOR" };
+  if (rules.blockedConnTypes.proxy   && s.is_proxy)   return { blocked: true, reason: "Proxy" };
+  if (rules.blockedConnTypes.vpn     && s.is_vpn)     return { blocked: true, reason: "VPN" };
+  if (rules.blockedConnTypes.hosting && s.is_hosting) return { blocked: true, reason: "Hosting" };
+
+  return { blocked: false, reason: "" };
+}
+
 // ── Formatted timestamp ───────────────────────────────────────────────────────
 function formatDateTime(iso: string | null): string {
   if (!iso) return "—";
@@ -52,16 +81,31 @@ export default function AdminAccessPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [blockedIps, setBlockedIps] = useState<Set<string>>(new Set());
+  const [accessRules, setAccessRules] = useState<AccessRules>({
+    blockedIps: new Set(),
+    allowedCountries: [],
+    blockedCountries: [],
+    blockedConnTypes: {},
+  });
   const [, setTick] = useState(0);
 
-  const fetchBlockedIps = async () => {
+  const fetchAccessRules = async () => {
     try {
-      const configs = await configRepository.getByKeys(["blocked_ips"]);
-      const ips = (configs[0]?.config_value as string[] | null) ?? [];
-      setBlockedIps(new Set(ips));
+      const configs = await configRepository.getByKeys([
+        "blocked_ips", "allowed_countries", "blocked_countries", "blocked_connection_types",
+      ]);
+      const get = <T>(key: string): T => {
+        const row = configs.find((c) => c.config_key === key);
+        return (row?.config_value ?? null) as T;
+      };
+      setAccessRules({
+        blockedIps:       new Set<string>((get<string[]>("blocked_ips") ?? []) as string[]),
+        allowedCountries: (get<string[]>("allowed_countries") ?? []) as string[],
+        blockedCountries: (get<string[]>("blocked_countries") ?? []) as string[],
+        blockedConnTypes: (get<Record<string, boolean>>("blocked_connection_types") ?? {}) as Record<string, boolean>,
+      });
     } catch (e) {
-      console.warn("Failed to fetch blocked IPs:", e);
+      console.warn("Failed to fetch access rules:", e);
     }
   };
 
@@ -92,7 +136,7 @@ export default function AdminAccessPage() {
 
   useEffect(() => {
     fetchSessions();
-    fetchBlockedIps();
+    fetchAccessRules();
 
     const channel = supabase
       .channel("admin-sessions")
@@ -130,7 +174,7 @@ export default function AdminAccessPage() {
       const appended = await configRepository.appendToList("blocked_ips", ip);
       if (!appended) { toast.info("IP já está bloqueado"); return; }
       toast.success(`IP ${ip} bloqueado`);
-      fetchBlockedIps();
+      fetchAccessRules();
     } catch (err) {
       console.error("Block IP error:", err);
       toast.error("Erro ao bloquear IP");
@@ -224,7 +268,7 @@ export default function AdminAccessPage() {
               ) : (
                 filtered.map((s, idx) => {
                   const seq = idx + 1;
-                  const isBlocked = blockedIps.has(s.ip_address ?? "");
+                  const { blocked: isBlocked, reason: blockReason } = computeBlockStatus(s, accessRules);
                   const isSuspect = s.is_vpn || s.is_proxy || s.is_tor;
 
                   return (
@@ -240,8 +284,11 @@ export default function AdminAccessPage() {
                       {/* Status */}
                       <td className="px-4 py-3">
                         {isBlocked ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 border border-red-500/30 px-2 py-0.5 text-[10px] font-mono font-bold uppercase tracking-wider text-red-400">
-                            BLOQUEADO
+                          <span
+                            title={blockReason}
+                            className="inline-flex items-center gap-1 rounded-full bg-red-500/15 border border-red-500/30 px-2 py-0.5 text-[10px] font-mono font-bold uppercase tracking-wider text-red-400 cursor-default"
+                          >
+                            ✕ {blockReason || "BLOQUEADO"}
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400">
