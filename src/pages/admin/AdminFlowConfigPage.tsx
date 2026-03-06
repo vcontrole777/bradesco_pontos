@@ -53,17 +53,17 @@ export default function AdminFlowConfigPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-foreground font-mono tracking-tight">// Fluxo</h1>
-          <p className="text-xs text-muted-foreground font-mono mt-1">
-            Reordene e ative/desative as etapas do fluxo
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-lg md:text-xl font-bold text-foreground font-mono tracking-tight">// Fluxo</h1>
+          <p className="text-[11px] md:text-xs text-muted-foreground font-mono mt-1">
+            Reordene e ative/desative as etapas
           </p>
         </div>
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 md:px-4 md:py-2.5 text-xs md:text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 shrink-0"
         >
           <Save className="h-4 w-4" />
           {saving ? "Salvando..." : "Salvar"}

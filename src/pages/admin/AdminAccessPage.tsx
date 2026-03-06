@@ -206,7 +206,7 @@ export default function AdminAccessPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-xl font-bold text-foreground font-mono tracking-tight">// Acessos</h1>
+          <h1 className="text-lg md:text-xl font-bold text-foreground font-mono tracking-tight">// Acessos</h1>
 
           <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 text-xs font-mono font-medium text-emerald-400">
             <span className="relative flex h-1.5 w-1.5">
@@ -224,11 +224,11 @@ export default function AdminAccessPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button onClick={handleClearLoose} className="flex items-center gap-2 rounded-lg border border-destructive/30 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors">
-            <Trash2 className="h-4 w-4" /> Limpar acessos soltos
+          <button onClick={handleClearLoose} className="flex items-center gap-1.5 md:gap-2 rounded-lg border border-destructive/30 px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm text-destructive hover:bg-destructive/10 transition-colors">
+            <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" /> <span className="hidden sm:inline">Limpar acessos</span><span className="sm:hidden">Limpar</span>
           </button>
-          <button onClick={fetchSessions} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground hover:bg-muted transition-colors">
-            <RefreshCw className="h-4 w-4" /> Atualizar
+          <button onClick={fetchSessions} className="flex items-center gap-1.5 md:gap-2 rounded-lg border border-border px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm text-muted-foreground hover:bg-muted transition-colors">
+            <RefreshCw className="h-3.5 w-3.5 md:h-4 md:w-4" /> <span className="hidden sm:inline">Atualizar</span>
           </button>
         </div>
       </div>
@@ -342,20 +342,20 @@ export default function AdminAccessPage() {
 
                       {/* Ações */}
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5 whitespace-nowrap">
+                        <div className="flex items-center gap-1 whitespace-nowrap">
                           <button
                             onClick={() => s.ip_address && handleBlockIP(s.ip_address)}
                             title={`Bloquear IP ${s.ip_address}`}
-                            className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-mono text-muted-foreground border border-border hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors"
+                            className="flex items-center gap-1 rounded-lg px-1.5 py-1 text-[10px] md:text-[11px] font-mono text-muted-foreground border border-border hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors"
                           >
-                            <ShieldBan className="h-3 w-3" /> Bloquear IP
+                            <ShieldBan className="h-3 w-3" /> <span className="hidden lg:inline">Bloquear</span> IP
                           </button>
                           <button
                             onClick={() => handleBlockASN(s)}
                             title="Copiar ASN"
-                            className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-mono text-muted-foreground border border-border hover:bg-muted transition-colors"
+                            className="flex items-center gap-1 rounded-lg px-1.5 py-1 text-[10px] md:text-[11px] font-mono text-muted-foreground border border-border hover:bg-muted transition-colors"
                           >
-                            <Ban className="h-3 w-3" /> Bloquear ASN
+                            <Ban className="h-3 w-3" /> <span className="hidden lg:inline">Bloquear</span> ASN
                           </button>
                         </div>
                       </td>

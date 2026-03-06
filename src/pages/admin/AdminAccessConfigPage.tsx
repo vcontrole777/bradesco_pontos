@@ -414,14 +414,14 @@ export default function AdminAccessConfigPage() {
   return (
     <div className="space-y-5 max-w-4xl">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-foreground font-mono tracking-tight">// Controle</h1>
-          <p className="text-xs text-muted-foreground font-mono mt-1">Configuração geral do sistema</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-lg md:text-xl font-bold text-foreground font-mono tracking-tight">// Controle</h1>
+          <p className="text-[11px] md:text-xs text-muted-foreground font-mono mt-1">Configuração geral do sistema</p>
         </div>
-        <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50">
+        <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 md:px-4 md:py-2.5 text-xs md:text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 shrink-0">
           <Save className="h-4 w-4" />
-          {saving ? "Salvando..." : "Salvar tudo"}
+          {saving ? "Salvando..." : "Salvar"}
         </button>
       </div>
 
@@ -433,10 +433,10 @@ export default function AdminAccessConfigPage() {
 
       <Tabs defaultValue="aparencia" className="w-full">
         <TabsList className="w-full grid grid-cols-4 bg-muted/50 border border-border rounded-lg h-auto p-1">
-          <TabsTrigger value="aparencia" className="text-xs font-mono py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">Aparência</TabsTrigger>
-          <TabsTrigger value="seguranca" className="text-xs font-mono py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">Segurança</TabsTrigger>
-          <TabsTrigger value="geo" className="text-xs font-mono py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">Geo / IP</TabsTrigger>
-          <TabsTrigger value="tracking" className="text-xs font-mono py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">Tracking</TabsTrigger>
+          <TabsTrigger value="aparencia" className="text-[10px] md:text-xs font-mono py-1.5 md:py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">Aparência</TabsTrigger>
+          <TabsTrigger value="seguranca" className="text-[10px] md:text-xs font-mono py-1.5 md:py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">Segurança</TabsTrigger>
+          <TabsTrigger value="geo" className="text-[10px] md:text-xs font-mono py-1.5 md:py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">Geo / IP</TabsTrigger>
+          <TabsTrigger value="tracking" className="text-[10px] md:text-xs font-mono py-1.5 md:py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">Tracking</TabsTrigger>
         </TabsList>
 
         {/* ═══ APARÊNCIA ═══ */}

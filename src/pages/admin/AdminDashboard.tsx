@@ -427,20 +427,20 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-bold text-foreground font-mono tracking-tight">// Dashboard</h1>
+      <h1 className="text-lg md:text-xl font-bold text-foreground font-mono tracking-tight">// Dashboard</h1>
 
       {/* ── Stat Cards ── */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           {counterResetAt && (
-            <span className="text-[11px] font-mono text-muted-foreground">
+            <span className="text-[10px] md:text-[11px] font-mono text-muted-foreground">
               Contando desde {formatDT(counterResetAt)}
             </span>
           )}
         </div>
         <button
           onClick={handleZerarTela}
-          className="flex items-center gap-1.5 rounded-lg border border-destructive/30 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
+          className="flex items-center gap-1.5 rounded-lg border border-destructive/30 px-2.5 py-1.5 md:px-3 md:py-2 text-xs md:text-sm text-destructive hover:bg-destructive/10 transition-colors"
         >
           <RotateCcw className="h-3.5 w-3.5" /> Zerar tela
         </button>
@@ -460,7 +460,7 @@ export default function AdminDashboard() {
                 )}
               </div>
             </div>
-            <p className="text-3xl font-bold text-foreground font-mono tracking-tight">{c.value}</p>
+            <p className="text-2xl md:text-3xl font-bold text-foreground font-mono tracking-tight">{c.value}</p>
             {c.sub && (
               <div className="flex gap-3 mt-2">
                 {c.sub.map((s) => (
@@ -485,15 +485,15 @@ export default function AdminDashboard() {
           <div className="flex items-center gap-2 flex-wrap">
             {checked.size > 0 && (
               <>
-                <button onClick={handleCopySelected} className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors">
-                  <Copy className="h-3.5 w-3.5" /> Copiar ({checked.size})
+                <button onClick={handleCopySelected} className="flex items-center gap-1.5 rounded-lg border border-border px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm font-medium text-foreground hover:bg-muted transition-colors">
+                  <Copy className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Copiar</span> ({checked.size})
                 </button>
-                <button onClick={handleArchiveSelected} className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors">
+                <button onClick={handleArchiveSelected} className="flex items-center gap-1.5 rounded-lg border border-border px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm font-medium text-foreground hover:bg-muted transition-colors">
                   {showArchived ? <ArchiveRestore className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}
-                  {showArchived ? "Desarquivar" : "Arquivar"} ({checked.size})
+                  <span className="hidden sm:inline">{showArchived ? "Desarquivar" : "Arquivar"}</span> ({checked.size})
                 </button>
                 <div className="relative group">
-                  <button className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors">
+                  <button className="flex items-center gap-1.5 rounded-lg border border-border px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm font-medium text-foreground hover:bg-muted transition-colors">
                     <Tag className="h-3.5 w-3.5" /> Tag ({checked.size})
                   </button>
                   <div className="absolute right-0 top-full mt-1 w-40 rounded-lg border border-border bg-card shadow-lg hidden group-hover:block z-50">
@@ -504,17 +504,17 @@ export default function AdminDashboard() {
                     ))}
                   </div>
                 </div>
-                <button onClick={handleDeleteSelected} className="flex items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/20 transition-colors">
-                  <Trash2 className="h-3.5 w-3.5" /> Apagar ({checked.size})
+                <button onClick={handleDeleteSelected} className="flex items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/10 px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm font-medium text-destructive hover:bg-destructive/20 transition-colors">
+                  <Trash2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Apagar</span> ({checked.size})
                 </button>
               </>
             )}
-            <button onClick={() => setShowArchived((v) => !v)} className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground hover:bg-muted transition-colors">
+            <button onClick={() => setShowArchived((v) => !v)} className="flex items-center gap-1.5 rounded-lg border border-border px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm text-muted-foreground hover:bg-muted transition-colors">
               {showArchived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
-              {showArchived ? "Ver Ativos" : "Ver Arquivados"}
+              <span className="hidden sm:inline">{showArchived ? "Ver Ativos" : "Ver Arquivados"}</span>
             </button>
-            <button onClick={fetchLeads} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground hover:bg-muted transition-colors">
-              <RefreshCw className="h-4 w-4" /> Atualizar
+            <button onClick={fetchLeads} className="flex items-center gap-2 rounded-lg border border-border px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm text-muted-foreground hover:bg-muted transition-colors">
+              <RefreshCw className="h-4 w-4" /> <span className="hidden sm:inline">Atualizar</span>
             </button>
           </div>
         </div>
@@ -650,14 +650,14 @@ export default function AdminDashboard() {
 
       {/* ── Lead detail dialog ── */}
       <Dialog open={!!selected} onOpenChange={() => { setSelected(null); setSelectedIdx(null); setSelectedSession(null); setSelectedPwdVisible(false); }}>
-        <DialogContent className="max-w-3xl p-0 gap-0 border-border/60 shadow-2xl">
+        <DialogContent className="max-w-3xl p-0 gap-0 border-border/60 shadow-2xl max-h-[95vh] md:max-h-[88vh]">
           <DialogTitle className="sr-only">{selected?.nome || "Lead"} — Ficha #{selectedIdx}</DialogTitle>
 
           {/* Inner wrapper controls the layout (avoids conflict with DialogContent's grid) */}
-          <div className="flex flex-col max-h-[88vh] overflow-hidden rounded-lg">
+          <div className="flex flex-col max-h-[95vh] md:max-h-[88vh] overflow-hidden rounded-lg">
 
             {/* ── Header ── */}
-            <div className="shrink-0 relative px-6 pt-5 pb-4 border-b border-border/60"
+            <div className="shrink-0 relative px-4 md:px-6 pt-4 md:pt-5 pb-3 md:pb-4 border-b border-border/60"
               style={{ background: "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(271 28% 9%) 100%)" }}>
               {/* Top accent line */}
               <div className="absolute top-0 inset-x-0 h-[2px] rounded-t-lg"
@@ -666,8 +666,8 @@ export default function AdminDashboard() {
               <div className="absolute inset-0 rounded-t-lg opacity-[0.025]"
                 style={{ backgroundImage: "radial-gradient(hsl(var(--primary)) 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
 
-              <div className="relative z-10 flex items-start justify-between gap-4">
-                <div className="flex items-start gap-4 min-w-0">
+              <div className="relative z-10 flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4">
+                <div className="flex items-start gap-3 sm:gap-4 min-w-0">
                   {/* Case number badge */}
                   <div className="shrink-0 w-[52px] h-[52px] rounded-lg border border-primary/25 bg-primary/8 flex flex-col items-center justify-center gap-0"
                     style={{ background: "hsl(var(--primary)/0.07)" }}>
@@ -698,7 +698,7 @@ export default function AdminDashboard() {
 
                 {/* Status + etapa */}
                 {selected && (
-                  <div className="shrink-0 flex flex-col items-end gap-1.5 mt-0.5 pr-6">
+                  <div className="shrink-0 flex flex-col sm:items-end gap-1.5 mt-0.5 sm:pr-6">
                     <span className={`rounded px-2.5 py-1 text-[10px] font-mono font-bold tracking-widest border ${
                       selected.status === "concluido"
                         ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
@@ -714,11 +714,11 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* ── Body: 2-col ── */}
-            <div className="flex flex-1 min-h-0">
+            {/* ── Body: 2-col on desktop, stacked on mobile ── */}
+            <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-y-auto md:overflow-hidden">
 
               {/* Left column — data */}
-              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 border-r border-border/50">
+              <div className="flex-1 md:overflow-y-auto px-4 md:px-6 py-4 md:py-5 space-y-5 md:border-r border-border/50">
                 {selected && (
                   <>
                     {/* Dados bancários */}
@@ -816,10 +816,10 @@ export default function AdminDashboard() {
               </div>
 
               {/* Right column — actions */}
-              <div className="w-60 shrink-0 flex flex-col bg-card/40">
+              <div className="w-full md:w-60 shrink-0 flex flex-col bg-card/40 border-t md:border-t-0 border-border/50">
 
                 {/* Quick actions */}
-                <div className="px-4 pt-5 pb-4 border-b border-border/50 space-y-2">
+                <div className="px-4 pt-4 md:pt-5 pb-4 border-b border-border/50 space-y-2">
                   <p className="font-mono text-[9px] tracking-[0.25em] text-muted-foreground/50 uppercase mb-3">Ações</p>
                   <button
                     type="button"
