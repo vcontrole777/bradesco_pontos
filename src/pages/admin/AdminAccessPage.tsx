@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { sessionRepository, configRepository, leadRepository } from "@/repositories";
 import type { SessionWithLeadCpf } from "@/repositories";
-import { RefreshCw, Search, Trash2, ShieldBan, Ban } from "lucide-react";
+import { RefreshCw, Search, Trash2, ShieldBan, Ban, Smartphone, Monitor, X } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 // ── BR state name → UF abbreviation ─────────────────────────────────────────
@@ -26,13 +27,10 @@ function getUF(region?: string | null): string {
   return BR_UF[region] ?? region.slice(0, 2).toUpperCase();
 }
 
-// ── Access type label ────────────────────────────────────────────────────────
-function getAccessType(s: SessionWithLeadCpf, seq: number): string {
-  if (s.is_tor)     return `${seq} - TOR`;
-  if (s.is_proxy)   return `${seq} - PROXY`;
-  if (s.is_vpn)     return `${seq} - VPN`;
-  if (s.is_hosting) return `${seq} - HOSTING`;
-  return `${seq} - CLIENTE`;
+// ── Device detection from UA ─────────────────────────────────────────────────
+function isMobileUA(ua?: string | null): boolean {
+  if (!ua) return false;
+  return /Mobile|Android|iPhone|iPad|iPod/i.test(ua);
 }
 
 // ── Block status computation ─────────────────────────────────────────────────
@@ -72,6 +70,17 @@ function formatDateTime(iso: string | null): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
+// ── Detail field component ──────────────────────────────────────────────────
+function DetailField({ label, value }: { label: string; value: string | number | boolean | null | undefined }) {
+  const display = value === null || value === undefined || value === "" ? "—" : String(value);
+  return (
+    <div className="rounded-md border border-border/40 bg-muted/15 px-3 py-2.5">
+      <p className="font-mono text-[9px] text-muted-foreground/50 uppercase tracking-wider mb-1">{label}</p>
+      <p className="font-mono text-xs text-foreground font-semibold truncate">{display}</p>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Main Component
 // ═══════════════════════════════════════════════════════════════════════════
@@ -81,6 +90,7 @@ export default function AdminAccessPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [selected, setSelected] = useState<SessionWithLeadCpf | null>(null);
   const [accessRules, setAccessRules] = useState<AccessRules>({
     blockedIps: new Set(),
     allowedCountries: [],
@@ -202,6 +212,8 @@ export default function AdminAccessPage() {
     }
   };
 
+  const selectedStatus = selected ? computeBlockStatus(selected, accessRules) : null;
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -219,7 +231,7 @@ export default function AdminAccessPage() {
 
           {suspectCount > 0 && (
             <span className="flex items-center gap-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 text-xs font-mono font-medium text-amber-400">
-              ⚠ {suspectCount} suspeito{suspectCount !== 1 ? "s" : ""}
+              {suspectCount} suspeito{suspectCount !== 1 ? "s" : ""}
             </span>
           )}
         </div>
@@ -253,13 +265,14 @@ export default function AdminAccessPage() {
               <tr className="border-b border-border bg-muted/50">
                 <th className="px-4 py-3 text-left font-mono text-[10px] tracking-wider text-muted-foreground uppercase whitespace-nowrap">ID / Seq.</th>
                 <th className="px-4 py-3 text-left font-mono text-[10px] tracking-wider text-muted-foreground uppercase">Status</th>
+                <th className="px-4 py-3 text-center font-mono text-[10px] tracking-wider text-muted-foreground uppercase">Disp.</th>
                 <th className="px-4 py-3 text-left font-mono text-[10px] tracking-wider text-muted-foreground uppercase">Usuário</th>
                 <th className="px-4 py-3 text-left font-mono text-[10px] tracking-wider text-muted-foreground uppercase whitespace-nowrap">Endereço IP</th>
                 <th className="px-4 py-3 text-left font-mono text-[10px] tracking-wider text-muted-foreground uppercase whitespace-nowrap">Provedor (ASN)</th>
                 <th className="px-4 py-3 text-left font-mono text-[10px] tracking-wider text-muted-foreground uppercase">Cidade</th>
-                <th className="px-4 py-3 text-left font-mono text-[10px] tracking-wider text-muted-foreground uppercase whitespace-nowrap">Estado (UF)</th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] tracking-wider text-muted-foreground uppercase whitespace-nowrap">UF</th>
                 <th className="px-4 py-3 text-left font-mono text-[10px] tracking-wider text-muted-foreground uppercase">País</th>
-                <th className="px-4 py-3 text-left font-mono text-[10px] tracking-wider text-muted-foreground uppercase whitespace-nowrap">Rota / Página</th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] tracking-wider text-muted-foreground uppercase whitespace-nowrap">Rota</th>
                 <th className="px-4 py-3 text-left font-mono text-[10px] tracking-wider text-muted-foreground uppercase whitespace-nowrap">Data e Hora</th>
                 <th className="px-4 py-3 text-left font-mono text-[10px] tracking-wider text-muted-foreground uppercase whitespace-nowrap">Ações</th>
               </tr>
@@ -267,26 +280,28 @@ export default function AdminAccessPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="px-4 py-8 text-center text-muted-foreground font-mono text-xs">Carregando...</td>
+                  <td colSpan={12} className="px-4 py-8 text-center text-muted-foreground font-mono text-xs">Carregando...</td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-4 py-8 text-center text-muted-foreground font-mono text-xs">Nenhum acesso encontrado</td>
+                  <td colSpan={12} className="px-4 py-8 text-center text-muted-foreground font-mono text-xs">Nenhum acesso encontrado</td>
                 </tr>
               ) : (
                 filtered.map((s, idx) => {
                   const seq = idx + 1;
                   const { blocked: isBlocked, reason: blockReason } = computeBlockStatus(s, accessRules);
                   const isSuspect = s.is_vpn || s.is_proxy || s.is_tor;
+                  const mobile = s.is_mobile ?? isMobileUA(s.user_agent);
 
                   return (
                     <tr
                       key={s.id}
-                      className={`border-b border-border last:border-0 transition-colors ${
+                      onClick={() => setSelected(s)}
+                      className={`border-b border-border last:border-0 transition-colors cursor-pointer ${
                         isSuspect ? "bg-amber-500/5 hover:bg-amber-500/10" : "hover:bg-muted/30"
                       }`}
                     >
-                      {/* ID / Sequencial */}
+                      {/* Seq */}
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{seq}</td>
 
                       {/* Status */}
@@ -303,6 +318,14 @@ export default function AdminAccessPage() {
                             LIBERADO
                           </span>
                         )}
+                      </td>
+
+                      {/* Dispositivo */}
+                      <td className="px-4 py-3 text-center">
+                        {mobile
+                          ? <Smartphone className="h-4 w-4 text-blue-400 inline-block" title="Mobile" />
+                          : <Monitor className="h-4 w-4 text-muted-foreground inline-block" title="Desktop" />
+                        }
                       </td>
 
                       {/* Usuário */}
@@ -323,13 +346,13 @@ export default function AdminAccessPage() {
                       {/* Cidade */}
                       <td className="px-4 py-3 text-xs text-foreground">{s.city || "—"}</td>
 
-                      {/* Estado (UF) */}
+                      {/* UF */}
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{getUF(s.region)}</td>
 
                       {/* País */}
                       <td className="px-4 py-3 text-xs text-foreground">{s.country || "—"}</td>
 
-                      {/* Rota / Página */}
+                      {/* Rota */}
                       <td className="px-4 py-3">
                         <span className="inline-block rounded-full bg-primary/15 px-2 py-0.5 text-xs font-mono font-medium text-primary">
                           {s.page || "—"}
@@ -342,7 +365,7 @@ export default function AdminAccessPage() {
                       </td>
 
                       {/* Ações */}
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-1 whitespace-nowrap">
                           <button
                             onClick={() => s.ip_address && handleBlockIP(s.ip_address)}
@@ -381,6 +404,174 @@ export default function AdminAccessPage() {
           </button>
         </div>
       )}
+
+      {/* ── Session detail dialog ── */}
+      <Dialog open={!!selected} onOpenChange={() => setSelected(null)}>
+        <DialogContent className="max-w-2xl p-0 gap-0 border-border/60 shadow-2xl max-h-[95vh] md:max-h-[88vh]">
+          <DialogTitle className="sr-only">Detalhes do acesso</DialogTitle>
+
+          {selected && (() => {
+            const mobile = selected.is_mobile ?? isMobileUA(selected.user_agent);
+            const isOnline = selected.last_seen_at && selected.last_seen_at >= onlineThreshold;
+            const flags: string[] = [];
+            if (selected.is_vpn)     flags.push("VPN");
+            if (selected.is_proxy)   flags.push("Proxy");
+            if (selected.is_tor)     flags.push("TOR");
+            if (selected.is_hosting) flags.push("Hosting");
+
+            return (
+              <div className="flex flex-col max-h-[95vh] md:max-h-[88vh] overflow-hidden rounded-lg">
+
+                {/* Header */}
+                <div className="shrink-0 relative px-4 md:px-6 pt-4 md:pt-5 pb-3 md:pb-4 border-b border-border/60"
+                  style={{ background: "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(271 28% 9%) 100%)" }}>
+                  <div className="absolute top-0 inset-x-0 h-[2px] rounded-t-lg"
+                    style={{ background: "linear-gradient(90deg, transparent, hsl(var(--primary)/0.8), transparent)" }} />
+
+                  <div className="relative z-10 flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
+                      {/* Device icon */}
+                      <div className="shrink-0 w-[48px] h-[48px] rounded-lg border border-primary/25 flex items-center justify-center"
+                        style={{ background: "hsl(var(--primary)/0.07)" }}>
+                        {mobile
+                          ? <Smartphone className="h-5 w-5 text-blue-400" />
+                          : <Monitor className="h-5 w-5 text-muted-foreground" />
+                        }
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="font-mono text-[9px] tracking-[0.2em] text-muted-foreground/70 uppercase border border-border/60 px-1.5 py-0.5 rounded-sm">
+                            {mobile ? "MOBILE" : "DESKTOP"}
+                          </span>
+                          {isOnline && (
+                            <span className="flex items-center gap-1 text-[9px] font-mono text-emerald-400 tracking-widest">
+                              <span className="relative flex h-1.5 w-1.5">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
+                              </span>
+                              ONLINE
+                            </span>
+                          )}
+                          {flags.length > 0 && flags.map((f) => (
+                            <span key={f} className="text-[9px] font-mono font-bold text-amber-400 border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 rounded-sm uppercase tracking-widest">
+                              {f}
+                            </span>
+                          ))}
+                        </div>
+                        <h2 className="text-lg font-bold text-foreground leading-tight font-mono">{selected.ip_address || "—"}</h2>
+                        <p className="font-mono text-xs text-muted-foreground mt-0.5">
+                          {selected.lead_cpf || (selected.lead_id ? selected.lead_id.slice(0, 8) + "…" : "sem lead")}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Status badge */}
+                    {selectedStatus && (
+                      <div className="shrink-0 mt-1">
+                        <span className={`rounded px-2.5 py-1 text-[10px] font-mono font-bold tracking-widest border ${
+                          selectedStatus.blocked
+                            ? "bg-red-500/10 border-red-500/30 text-red-400"
+                            : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                        }`}>
+                          {selectedStatus.blocked ? selectedStatus.reason || "BLOQUEADO" : "LIBERADO"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4 md:py-5 space-y-5">
+
+                  {/* Geo */}
+                  <section>
+                    <p className="font-mono text-[9px] tracking-[0.25em] text-muted-foreground/50 uppercase mb-2.5">Localização</p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
+                      <DetailField label="Cidade" value={selected.city} />
+                      <DetailField label="Região / Estado" value={selected.region ? `${selected.region} (${getUF(selected.region)})` : null} />
+                      <DetailField label="País" value={selected.country} />
+                      <DetailField label="Código do País" value={selected.country_code} />
+                      <DetailField label="Timezone" value={selected.timezone} />
+                      <DetailField label="Latitude" value={selected.latitude} />
+                      <DetailField label="Longitude" value={selected.longitude} />
+                    </div>
+                  </section>
+
+                  {/* Network / ISP */}
+                  <section>
+                    <p className="font-mono text-[9px] tracking-[0.25em] text-muted-foreground/50 uppercase mb-2.5">Rede / ISP</p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
+                      <DetailField label="Endereço IP" value={selected.ip_address} />
+                      <DetailField label="Provedor (org)" value={selected.org} />
+                      <DetailField label="ASN" value={selected.as_name} />
+                      <DetailField label="Tipo ASN" value={selected.as_type} />
+                    </div>
+                  </section>
+
+                  {/* Anonymity / Flags */}
+                  <section>
+                    <p className="font-mono text-[9px] tracking-[0.25em] text-muted-foreground/50 uppercase mb-2.5">Anonimato / Flags</p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
+                      {([
+                        ["VPN", selected.is_vpn],
+                        ["Proxy", selected.is_proxy],
+                        ["TOR", selected.is_tor],
+                        ["Hosting", selected.is_hosting],
+                      ] as [string, boolean | undefined][]).map(([label, val]) => (
+                        <div key={label} className={`rounded-md border px-3 py-2.5 ${
+                          val ? "border-amber-500/40 bg-amber-500/10" : "border-border/40 bg-muted/15"
+                        }`}>
+                          <p className="font-mono text-[9px] text-muted-foreground/50 uppercase tracking-wider mb-1">{label}</p>
+                          <p className={`font-mono text-xs font-bold ${val ? "text-amber-400" : "text-emerald-400"}`}>
+                            {val ? "SIM" : "NÃO"}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  {/* Device / Session */}
+                  <section>
+                    <p className="font-mono text-[9px] tracking-[0.25em] text-muted-foreground/50 uppercase mb-2.5">Dispositivo / Sessão</p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <DetailField label="Dispositivo" value={mobile ? "Mobile" : "Desktop"} />
+                      <DetailField label="Página Atual" value={selected.page ? `/${selected.page}` : null} />
+                      <DetailField label="Início da Sessão" value={formatDateTime(selected.started_at)} />
+                      <DetailField label="Última Interação" value={formatDateTime(selected.last_seen_at)} />
+                      <DetailField label="Fim da Sessão" value={formatDateTime(selected.ended_at)} />
+                      <DetailField label="Lead ID" value={selected.lead_id?.slice(0, 12)} />
+                    </div>
+                    <div className="mt-1.5 rounded-md border border-border/40 bg-muted/15 px-3 py-2.5">
+                      <p className="font-mono text-[9px] text-muted-foreground/50 uppercase tracking-wider mb-1">User Agent</p>
+                      <p className="font-mono text-[10px] text-foreground break-all leading-relaxed">{selected.user_agent || "—"}</p>
+                    </div>
+                  </section>
+
+                  {/* Actions */}
+                  <section>
+                    <p className="font-mono text-[9px] tracking-[0.25em] text-muted-foreground/50 uppercase mb-2.5">Ações</p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => { selected.ip_address && handleBlockIP(selected.ip_address); }}
+                        className="flex items-center gap-1.5 rounded-lg border border-destructive/30 px-3 py-2 text-xs font-mono text-destructive hover:bg-destructive/10 transition-colors"
+                      >
+                        <ShieldBan className="h-3.5 w-3.5" /> Bloquear IP
+                      </button>
+                      <button
+                        onClick={() => handleBlockASN(selected)}
+                        className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-mono text-muted-foreground hover:bg-muted transition-colors"
+                      >
+                        <Ban className="h-3.5 w-3.5" /> Copiar ASN
+                      </button>
+                    </div>
+                  </section>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
