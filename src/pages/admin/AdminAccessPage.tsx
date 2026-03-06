@@ -165,7 +165,8 @@ export default function AdminAccessPage() {
     );
   });
 
-  const onlineCount  = sessions.filter((s) => s.is_online).length;
+  const onlineThreshold = new Date(Date.now() - 60_000).toISOString();
+  const onlineCount  = sessions.filter((s) => s.last_seen_at && s.last_seen_at >= onlineThreshold).length;
   const suspectCount = sessions.filter((s) => s.is_vpn || s.is_proxy || s.is_tor).length;
 
   const handleBlockIP = async (ip: string) => {
