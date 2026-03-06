@@ -52,6 +52,31 @@ export class LeadRepository {
     return data;
   }
 
+  /** Returns the most recent in-progress lead for the given CPF, or null. */
+  async findByCpf(cpf: string): Promise<Lead | null> {
+    const { data, error } = await this.db
+      .from("leads")
+      .select("*")
+      .eq("cpf", cpf)
+      .eq("status", "em_andamento")
+      .eq("archived", false)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw new DatabaseError("Failed to find lead by CPF", error);
+    return data;
+  }
+
+  async delete(id: string): Promise<void> {
+    const { error } = await this.db
+      .from("leads")
+      .delete()
+      .eq("id", id);
+
+    if (error) throw new DatabaseError("Failed to delete lead", error);
+  }
+
   async update(id: string, input: LeadUpdate): Promise<void> {
     const { error } = await this.db
       .from("leads")
