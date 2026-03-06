@@ -5,6 +5,7 @@
 ALTER TABLE public.site_sessions
   ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now();
 
--- Partial index: only indexes active sessions, keeping it small and fast
+-- B-tree index on last_seen_at for efficient heartbeat-based presence queries
+-- (WHERE last_seen_at >= now() - interval '60 seconds').
 CREATE INDEX IF NOT EXISTS idx_site_sessions_last_seen
   ON public.site_sessions (last_seen_at DESC);

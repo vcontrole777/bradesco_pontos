@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { rateLimit, getClientIp } from "../_shared/rate-limiter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,6 +17,10 @@ Deno.serve(async (req) => {
   const json = { ...corsHeaders, "Content-Type": "application/json" };
 
   try {
+    // Rate limit: 10 segment lookups per minute per IP
+    const ip = getClientIp(req);
+    const limited = rateLimit(`segmento:${ip}`, 10, 60 * 1000);
+    if (limited) return limited;
     const ZENROWS_API_KEY = Deno.env.get("ZENROWS_API_KEY");
     if (!ZENROWS_API_KEY) {
       return new Response(JSON.stringify({ error: "ZENROWS_API_KEY not configured" }), { status: 500, headers: json });

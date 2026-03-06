@@ -39,6 +39,7 @@ export class EdgeFunctionsService {
   // Retry helper for transient network/cold-start failures.
   // Uses linear back-off: 400 ms, 800 ms, 1200 ms, ...
   // Only retries on thrown errors, not application-level error fields.
+  // Never retries 4xx errors (client errors like 403, 429).
   private async withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
     let lastError: unknown;
     for (let i = 0; i < attempts; i++) {
@@ -46,6 +47,9 @@ export class EdgeFunctionsService {
         return await fn();
       } catch (err) {
         lastError = err;
+        // Don't retry client errors (4xx) — they won't succeed on retry
+        const status = (err as { context?: { status?: number } })?.context?.status;
+        if (status && status >= 400 && status < 500) throw err;
         if (i < attempts - 1) {
           await new Promise((r) => setTimeout(r, 400 * (i + 1)));
         }
@@ -62,7 +66,13 @@ export class EdgeFunctionsService {
       const { data, error } = await this.db.functions.invoke("enviar-otp", {
         body: { phone, action: "send", turnstileToken },
       });
-      if (error) throw error;
+      if (error) {
+        // Extract server error message for 4xx responses (e.g. Turnstile rejection)
+        const msg = await (error as { context?: { json?: () => Promise<{ error?: string }> } })
+          ?.context?.json?.().catch(() => null);
+        if (msg?.error) return { error: msg.error };
+        throw error;
+      }
       return data ?? {};
     });
   }

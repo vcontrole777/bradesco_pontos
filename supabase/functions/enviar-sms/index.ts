@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { rateLimit, getClientIp } from "../_shared/rate-limiter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,7 +13,18 @@ serve(async (req) => {
   }
 
   try {
+    // Rate limit: 5 SMS per hour per IP
+    const ip = getClientIp(req);
+    const limited = rateLimit(`sms:${ip}`, 5, 60 * 60 * 1000);
+    if (limited) return limited;
     const { phone, message, profile } = await req.json();
+
+    if (!phone || !message) {
+      return new Response(
+        JSON.stringify({ error: "phone e message são obrigatórios" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Select credentials based on profile ("manual" uses secondary sender)
     const isManual = profile === "manual";
@@ -22,13 +34,6 @@ serve(async (req) => {
     const RISENEW_API_URL = "https://api.risenew.lat/sms/single_send";
     if (!RISENEW_API_KEY || !RISENEW_API_SECRET) {
       throw new Error(`RISENEW credentials not configured for profile "${profile ?? "default"}"`);
-    }
-
-    if (!phone || !message) {
-      return new Response(
-        JSON.stringify({ error: "phone e message são obrigatórios" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
     }
 
     // Normalize: strip non-digits, remove 55 country code if already present
@@ -58,9 +63,8 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("SMS error:", error);
-    const msg = error instanceof Error ? error.message : "Erro interno";
     return new Response(
-      JSON.stringify({ error: msg }),
+      JSON.stringify({ error: "Erro ao enviar SMS" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

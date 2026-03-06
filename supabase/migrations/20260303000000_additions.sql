@@ -145,5 +145,8 @@ $$;
 -- Admin operations use service_role (bypasses RLS), so these grants
 -- are defensive — they allow the functions to be called via anon/
 -- authenticated roles in future use cases as well.
+-- Both functions are called from the admin panel which uses the anon key
+-- (admin auth is application-level, not Supabase auth).
+-- In a future iteration, admin should use a dedicated authenticated role.
 GRANT EXECUTE ON FUNCTION public.append_to_config_list(text, text) TO anon;
 GRANT EXECUTE ON FUNCTION public.batch_update_flow_steps(jsonb)    TO anon;

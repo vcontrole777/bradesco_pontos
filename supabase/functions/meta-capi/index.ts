@@ -1,3 +1,5 @@
+import { rateLimit, getClientIp } from "../_shared/rate-limiter.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -13,6 +15,10 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Rate limit: 30 CAPI events per minute per IP
+    const ip = getClientIp(req);
+    const limited = rateLimit(`capi:${ip}`, 30, 60 * 1000);
+    if (limited) return limited;
     const body = await req.json();
     const {
       event_name,

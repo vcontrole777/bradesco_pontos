@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { rateLimit, getClientIp } from "../_shared/rate-limiter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,6 +31,11 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Rate limit: 20 IP lookups per minute per IP
+    const clientIpForLimit = getClientIp(req);
+    const limited = rateLimit(`ipinfo:${clientIpForLimit}`, 20, 60 * 1000);
+    if (limited) return limited;
+
     const token = Deno.env.get("IPINFO_TOKEN");
     if (!token) throw new Error("IPINFO_TOKEN not configured");
 

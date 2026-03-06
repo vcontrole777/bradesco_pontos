@@ -15,6 +15,7 @@ const BiometryPage = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [photo, setPhoto] = useState<string | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [error, setError] = useState("");
   const logo = getSegmentLogo(data.segment);
 
@@ -28,6 +29,7 @@ const BiometryPage = () => {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user", width: 480, height: 640 },
       });
+      streamRef.current = mediaStream;
       setStream(mediaStream);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
@@ -40,7 +42,7 @@ const BiometryPage = () => {
   useEffect(() => {
     startCamera();
     return () => {
-      stream?.getTracks().forEach((t) => t.stop());
+      streamRef.current?.getTracks().forEach((t) => t.stop());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

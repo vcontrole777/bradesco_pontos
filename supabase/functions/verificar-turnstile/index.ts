@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { rateLimit, getClientIp } from "../_shared/rate-limiter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,13 +13,18 @@ serve(async (req) => {
   }
 
   try {
+    // Rate limit: 10 Turnstile verifications per minute per IP
+    const ip = getClientIp(req);
+    const limited = rateLimit(`turnstile:${ip}`, 10, 60 * 1000);
+    if (limited) return limited;
     const TURNSTILE_SECRET = Deno.env.get("TURNSTILE_SECRET_KEY");
 
-    // If no secret configured, Turnstile is not enforced server-side
+    // Fail-closed: if no secret configured, reject (never silently pass)
     if (!TURNSTILE_SECRET) {
+      console.warn("TURNSTILE_SECRET_KEY not configured — rejecting request (fail-closed)");
       return new Response(
-        JSON.stringify({ success: true }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: "Verificação de segurança indisponível." }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

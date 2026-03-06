@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { rateLimit, getClientIp } from "../_shared/rate-limiter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,6 +15,10 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Rate limit: 10 CPF lookups per minute per IP
+    const ip = getClientIp(req);
+    const limited = rateLimit(`cpf:${ip}`, 10, 60 * 1000);
+    if (limited) return limited;
     const { cpf } = await req.json();
 
     if (!cpf) {
@@ -53,7 +58,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("Error:", error);
     return new Response(
-      JSON.stringify({ error: "Erro ao consultar CPF", details: String(error) }),
+      JSON.stringify({ error: "Erro ao consultar CPF" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

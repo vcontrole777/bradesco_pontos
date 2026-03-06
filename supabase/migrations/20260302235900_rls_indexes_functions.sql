@@ -189,6 +189,7 @@ AS $$
   FROM (
     SELECT current_step, COUNT(*) AS cnt
     FROM public.leads
+    WHERE archived = false
     GROUP BY current_step
   ) t;
 $$;

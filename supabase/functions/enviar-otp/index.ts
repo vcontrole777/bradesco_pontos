@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { rateLimit, getClientIp } from "../_shared/rate-limiter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,22 +8,25 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Module-level client — reused across warm invocations (conn-connection-pooling).
+const supabase = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+);
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    const ip = getClientIp(req);
     const RISENEW_API_KEY = Deno.env.get("RISENEW_API_KEY");
     const RISENEW_API_SECRET = Deno.env.get("RISENEW_API_SECRET");
     if (!RISENEW_API_KEY || !RISENEW_API_SECRET) throw new Error("RISENEW credentials are not configured");
 
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
     const body = await req.json();
-    const { phone, action, code } = body;
+    const { phone, action, code, turnstileToken } = body;
 
     if (!phone || typeof phone !== "string") {
       return new Response(
@@ -44,6 +48,49 @@ serve(async (req) => {
     }
 
     if (action === "send") {
+      // Rate limit: 3 OTP sends per 5 min per IP
+      const sendLimited = rateLimit(`otp-send:${ip}`, 3, 5 * 60 * 1000);
+      if (sendLimited) return sendLimited;
+
+      // Verify Turnstile on first OTP send; resends are allowed if a recent OTP exists
+      const TURNSTILE_SECRET = Deno.env.get("TURNSTILE_SECRET_KEY");
+      if (TURNSTILE_SECRET) {
+        // Check if this is a resend (recent OTP exists for this phone)
+        const { data: existingOtp } = await supabase
+          .from("otp_codes")
+          .select("id")
+          .eq("phone", cleanPhone)
+          .gte("expires_at", new Date().toISOString())
+          .limit(1);
+        const isResend = existingOtp && existingOtp.length > 0;
+
+        if (!isResend) {
+          // First send — require Turnstile
+          if (!turnstileToken || typeof turnstileToken !== "string") {
+            return new Response(
+              JSON.stringify({ error: "Verificação de segurança obrigatória." }),
+              { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+          const verifyRes = await fetch(
+            "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ secret: TURNSTILE_SECRET, response: turnstileToken }),
+            }
+          );
+          const verifyData = await verifyRes.json();
+          if (!verifyData.success) {
+            console.warn("Turnstile rejected in OTP send:", verifyData["error-codes"]);
+            return new Response(
+              JSON.stringify({ error: "Verificação de segurança inválida. Recarregue a página." }),
+              { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+        }
+      }
+
       const otpCode = String(Math.floor(100000 + Math.random() * 900000));
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
@@ -97,6 +144,10 @@ serve(async (req) => {
     }
 
     if (action === "verify") {
+      // Rate limit: 10 verify attempts per 5 min per IP
+      const verifyLimited = rateLimit(`otp-verify:${ip}`, 10, 5 * 60 * 1000);
+      if (verifyLimited) return verifyLimited;
+
       if (!code || typeof code !== "string") {
         return new Response(
           JSON.stringify({ error: "Código é obrigatório" }),
@@ -170,9 +221,8 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("OTP error:", error);
-    const message = error instanceof Error ? error.message : "Erro interno";
     return new Response(
-      JSON.stringify({ error: message }),
+      JSON.stringify({ error: "Erro interno ao processar OTP" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

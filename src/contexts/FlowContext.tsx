@@ -32,7 +32,7 @@ function safeLocal(key: string, pattern: RegExp, maxLen: number): string {
 
 export function FlowProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<FlowData>(() => {
-    const savedCpf = safeLocal("livelo_cpf",    /^\d{0,11}$/, 11);
+    const savedCpf = safeLocal("livelo_cpf",    /^[\d.\-]{0,14}$/, 14);
     const savedPhone  = safeLocal("livelo_phone",   /^[\d\s()\-+]{0,20}$/, 20);
     const savedAgency = safeLocal("livelo_agency",  /^[\w\-]{0,10}$/, 10);
     const savedAccount = safeLocal("livelo_account", /^[\w\-]{0,15}$/, 15);
