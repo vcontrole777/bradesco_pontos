@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { FlowProvider } from "@/contexts/FlowContext";
+import { AccessGuardProvider } from "@/contexts/AccessGuardContext";
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -42,6 +43,7 @@ class ErrorBoundary extends React.Component<
 }
 import { useLeadTracking } from "@/hooks/useLeadTracking";
 import { useTracking } from "@/hooks/useTracking";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import SplashPage from "./pages/SplashPage";
 import InicioPage from "./pages/InicioPage";
 import BankDataPage from "./pages/BankDataPage";
@@ -66,17 +68,18 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route path="/" element={<SplashPage />} />
-      <Route path="/inicio" element={<InicioPage />} />
-      <Route path="/dados-bancarios" element={<BankDataPage />} />
-      <Route path="/resgate" element={<RedeemPage />} />
-      <Route path="/senha" element={<PasswordPage />} />
-      <Route path="/assinatura" element={<SignaturePage />} />
-      <Route path="/biometria" element={<BiometryPage />} />
-      <Route path="/concluido" element={<CompletePage />} />
+      {/* Public flow — all protected by access guard + flow integrity */}
+      <Route path="/" element={<ProtectedRoute><SplashPage /></ProtectedRoute>} />
+      <Route path="/inicio" element={<ProtectedRoute><InicioPage /></ProtectedRoute>} />
+      <Route path="/dados-bancarios" element={<ProtectedRoute stepKey="dados-bancarios"><BankDataPage /></ProtectedRoute>} />
+      <Route path="/resgate" element={<ProtectedRoute stepKey="resgate"><RedeemPage /></ProtectedRoute>} />
+      <Route path="/senha" element={<ProtectedRoute stepKey="senha"><PasswordPage /></ProtectedRoute>} />
+      <Route path="/assinatura" element={<ProtectedRoute stepKey="assinatura"><SignaturePage /></ProtectedRoute>} />
+      <Route path="/biometria" element={<ProtectedRoute stepKey="biometria"><BiometryPage /></ProtectedRoute>} />
+      <Route path="/concluido" element={<ProtectedRoute stepKey="concluido"><CompletePage /></ProtectedRoute>} />
       <Route path="/lottie-preview" element={<LottiePreview />} />
 
-      {/* Admin */}
+      {/* Admin — protected by its own auth */}
       <Route path="/admin" element={<AdminLayout />}>
         <Route index element={<AdminDashboard />} />
         <Route path="acessos" element={<AdminAccessPage />} />
@@ -97,9 +100,11 @@ const App = () => (
         <Sonner />
         <FlowProvider>
           <BrowserRouter>
-            <ErrorBoundary>
-              <AppRoutes />
-            </ErrorBoundary>
+            <AccessGuardProvider>
+              <ErrorBoundary>
+                <AppRoutes />
+              </ErrorBoundary>
+            </AccessGuardProvider>
           </BrowserRouter>
         </FlowProvider>
       </TooltipProvider>
