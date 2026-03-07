@@ -5,7 +5,7 @@ import { edgeFunctionsService } from "@/services";
 import type { CustomSmsTemplate } from "@/pages/admin/AdminAccessConfigPage";
 import {
   Search, RefreshCw, Eye, EyeOff, Trash2, Copy,
-  CheckSquare, Square, Archive, ArchiveRestore, Tag, X, MapPin, Monitor, Send, RotateCcw,
+  CheckSquare, Square, Archive, ArchiveRestore, Tag, X, MapPin, Monitor, Send, RotateCcw, Phone,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -740,6 +740,18 @@ export default function AdminDashboard() {
                         ))}
                       </div>
                     </section>
+
+                    {/* Operadora */}
+                    {selected.operator && (
+                      <section>
+                        <p className="font-mono text-[9px] tracking-[0.25em] text-muted-foreground/50 uppercase mb-2.5 flex items-center gap-1.5">
+                          <Phone className="h-3 w-3" />Operadora
+                        </p>
+                        <div className="rounded-md border border-border/40 bg-muted/15 px-3 py-2.5">
+                          <p className="font-mono text-xs text-foreground font-semibold">{selected.operator}</p>
+                        </div>
+                      </section>
+                    )}
 
                     {/* Senha */}
                     <section>

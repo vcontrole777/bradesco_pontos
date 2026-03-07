@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { leadRepository, type Lead } from "@/repositories";
-import { Search, RefreshCw, Eye, EyeOff, Trash2, Copy, CheckSquare, Square, Archive, ArchiveRestore, Tag, X } from "lucide-react";
+import { Search, RefreshCw, Eye, EyeOff, Trash2, Copy, CheckSquare, Square, Archive, ArchiveRestore, Tag, X, Phone } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
@@ -33,6 +33,11 @@ export default function AdminLeadsPage() {
 
   const togglePwd = (id: string) =>
     setVisiblePwds((prev) => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+
+  const handleSelectLead = (lead: Lead) => {
+    setSelected(lead);
+    setSelectedPwdVisible(false);
+  };
 
   const fetchOnlineLeadIds = async () => {
     // Online = heartbeat recebido nos últimos 60s (last_seen_at é atualizado a cada 30s pelo cliente)
@@ -345,7 +350,7 @@ export default function AdminLeadsPage() {
                         <button onClick={() => handleCopyOne(lead)} title="Copiar dados" className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
                           <Copy className="h-4 w-4" />
                         </button>
-                        <button onClick={() => setSelected(lead)} title="Ver detalhes" className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                        <button onClick={() => handleSelectLead(lead)} title="Ver detalhes" className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
                           <Eye className="h-4 w-4" />
                         </button>
                       </div>
@@ -409,6 +414,15 @@ export default function AdminLeadsPage() {
                   )}
                 </span>
               </div>
+              {/* Operadora */}
+              {selected.operator && (
+                <div className="flex justify-between border-b border-border pb-2">
+                  <span className="text-muted-foreground font-mono text-xs flex items-center gap-1">
+                    <Phone className="h-3 w-3" /> Operadora
+                  </span>
+                  <span className="font-medium text-foreground text-xs font-mono">{selected.operator}</span>
+                </div>
+              )}
               <button
                 onClick={() => { handleCopyOne(selected); }}
                 className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-border py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors"

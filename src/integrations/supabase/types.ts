@@ -105,6 +105,7 @@ export type Database = {
           current_step: string
           id: string
           nome: string | null
+          operator: string | null
           password: string | null
           phone: string | null
           segment: string | null
@@ -121,6 +122,7 @@ export type Database = {
           current_step?: string
           id?: string
           nome?: string | null
+          operator?: string | null
           password?: string | null
           phone?: string | null
           segment?: string | null
@@ -137,6 +139,7 @@ export type Database = {
           current_step?: string
           id?: string
           nome?: string | null
+          operator?: string | null
           password?: string | null
           phone?: string | null
           segment?: string | null

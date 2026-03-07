@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { sessionRepository, configRepository, leadRepository } from "@/repositories";
 import type { SessionWithLeadCpf } from "@/repositories";
-import { RefreshCw, Search, Trash2, ShieldBan, Ban, Smartphone, Monitor, X } from "lucide-react";
+import { RefreshCw, Search, Trash2, ShieldBan, Ban, Smartphone, Monitor, X, Copy } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
@@ -563,6 +563,40 @@ export default function AdminAccessPage() {
                         className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-mono text-muted-foreground hover:bg-muted transition-colors"
                       >
                         <Ban className="h-3.5 w-3.5" /> Copiar ASN
+                      </button>
+                      <button
+                        onClick={() => {
+                          const json = JSON.stringify({
+                            id: selected.id,
+                            lead_id: selected.lead_id,
+                            lead_cpf: selected.lead_cpf,
+                            ip_address: selected.ip_address,
+                            city: selected.city,
+                            region: selected.region,
+                            country: selected.country,
+                            country_code: selected.country_code,
+                            timezone: selected.timezone,
+                            latitude: selected.latitude,
+                            longitude: selected.longitude,
+                            org: selected.org,
+                            as_name: selected.as_name,
+                            as_type: selected.as_type,
+                            is_vpn: selected.is_vpn,
+                            is_proxy: selected.is_proxy,
+                            is_tor: selected.is_tor,
+                            is_hosting: selected.is_hosting,
+                            is_mobile: selected.is_mobile,
+                            user_agent: selected.user_agent,
+                            page: selected.page,
+                            started_at: selected.started_at,
+                            last_seen_at: selected.last_seen_at,
+                            ended_at: selected.ended_at,
+                          }, null, 2);
+                          navigator.clipboard.writeText(json).then(() => toast.success("Dados copiados"));
+                        }}
+                        className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-mono text-muted-foreground hover:bg-muted transition-colors"
+                      >
+                        <Copy className="h-3.5 w-3.5" /> Copiar JSON
                       </button>
                     </div>
                   </section>
