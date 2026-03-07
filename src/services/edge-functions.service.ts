@@ -1,33 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
-export interface IpInfo {
-  ip?: string;
-  hostname?: string | null;
-  geo?: {
-    city?: string | null;
-    region?: string | null;
-    country?: string | null;      // full country name (e.g. "Brasil")
-    country_code?: string | null; // ISO-3166 2-letter code (e.g. "BR")
-    latitude?: number | null;
-    longitude?: number | null;
-    timezone?: string | null;
-    postal_code?: string | null;
-  };
-  as?: {
-    asn?: string | null;
-    name?: string | null;
-    type?: string | null; // "isp" | "hosting" | "business" | ...
-  };
-  anonymous?: {
-    is_vpn?: boolean;
-    is_proxy?: boolean;
-    is_tor?: boolean;
-    is_relay?: boolean;
-  };
-  is_anonymous?: boolean;
-  is_hosting?: boolean;
-  is_mobile?: boolean;
+export interface CheckAccessResult {
+  allowed: boolean;
+  reason?: string;
+  session_id?: string | null;
 }
 
 // Service layer wrapping all Supabase Edge Function invocations.
@@ -126,10 +103,16 @@ export class EdgeFunctionsService {
     if (error) throw error;
   }
 
-  async getIpInfo(): Promise<IpInfo> {
-    const { data, error } = await this.db.functions.invoke("ip-info");
+  async checkAccess(params?: {
+    screen_width?: number;
+    lead_id?: string;
+    user_agent?: string;
+  }): Promise<CheckAccessResult> {
+    const { data, error } = await this.db.functions.invoke("ip-info", {
+      body: params ?? {},
+    });
     if (error) throw error;
-    return data ?? {};
+    return data ?? { allowed: true };
   }
 
   async sendServerEvent(params: {

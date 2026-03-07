@@ -2,7 +2,6 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef, ty
 import { configRepository } from "@/repositories";
 import { edgeFunctionsService } from "@/services";
 import { supabase } from "@/integrations/supabase/client";
-import type { IpInfo } from "@/services/edge-functions.service";
 
 interface AccessGuardState {
   allowed: boolean;
@@ -22,32 +21,19 @@ function isMobile(): boolean {
   );
 }
 
-async function logBlock(
-  reason: string,
-  ipInfo?: { ip?: string; city?: string; region?: string; country?: string }
-): Promise<void> {
+async function logBlock(reason: string): Promise<void> {
   try {
     await configRepository.logAccess({
       reason,
-      ip_address: ipInfo?.ip ?? null,
-      city: ipInfo?.city ?? null,
-      region: ipInfo?.region ?? null,
-      country: ipInfo?.country ?? null,
+      ip_address: null,
+      city: null,
+      region: null,
+      country: null,
       user_agent: navigator.userAgent,
     });
   } catch {
     // silent
   }
-}
-
-// Session-cached IP info (avoids repeated API calls within same visit)
-let cachedIpInfo: IpInfo | null = null;
-
-async function getIpInfoCached(): Promise<IpInfo> {
-  if (cachedIpInfo) return cachedIpInfo;
-  const info = await edgeFunctionsService.getIpInfo();
-  cachedIpInfo = info;
-  return info;
 }
 
 export function AccessGuardProvider({ children }: { children: ReactNode }) {
@@ -64,14 +50,14 @@ export function AccessGuardProvider({ children }: { children: ReactNode }) {
       const get = <T,>(key: string): T | undefined =>
         configs.find((c) => c.config_key === key)?.config_value as T | undefined;
 
-      // Site offline check (instant, no IP call needed)
+      // Site offline check (instant, no server call needed)
       const siteOffline = get<boolean>("site_offline");
       if (siteOffline === true) {
         if (mountedRef.current) setState({ allowed: false, loading: false, reason: "Site em manutenção. Tente novamente mais tarde." });
         return;
       }
 
-      // Device check (basic — desktop blocked or mobile blocked outright)
+      // Basic device check (UA only, no IP needed)
       const devices = get<{ mobile: boolean; desktop: boolean }>("allowed_devices");
       const uaMobile = isMobile();
       if (devices) {
@@ -89,98 +75,33 @@ export function AccessGuardProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      // Check if any IP-dependent rules are configured
       const blockedIps = get<string[]>("blocked_ips") ?? [];
       const blockedRegions = get<string[]>("blocked_regions") ?? [];
       const blockedConnTypes = get<Record<string, boolean>>("blocked_connection_types") ?? {};
       const allowedCountries = get<string[]>("allowed_countries") ?? [];
       const blockedCountries = get<string[]>("blocked_countries") ?? [];
-
-      // We need IP info for geo/IP checks AND for the anti-spoofing device check
       const mobileOnlyMode = devices && devices.mobile && !devices.desktop;
-      const needsIpCheck =
+
+      const needsServerCheck =
         blockedIps.length > 0 ||
         blockedRegions.length > 0 ||
         Object.values(blockedConnTypes).some(Boolean) ||
         allowedCountries.length > 0 ||
         blockedCountries.length > 0 ||
-        mobileOnlyMode; // need IP to verify mobile spoofing
+        mobileOnlyMode; // anti-spoofing needs IP
 
-      if (needsIpCheck) {
+      if (needsServerCheck) {
         try {
-          const ipInfo: IpInfo = await getIpInfoCached();
-          if (!ipInfo.ip) throw new Error("empty ip response");
-          const ip = ipInfo.ip ?? "";
-          const country = (ipInfo.geo?.country_code ?? "").toUpperCase();
-          const location = `${ipInfo.geo?.city ?? ""} ${ipInfo.geo?.region ?? ""}`.toLowerCase();
-          const privacyMap: Record<string, boolean> = {
-            vpn:     ipInfo.anonymous?.is_vpn   ?? false,
-            proxy:   ipInfo.anonymous?.is_proxy  ?? false,
-            tor:     ipInfo.anonymous?.is_tor    ?? false,
-            relay:   ipInfo.anonymous?.is_relay  ?? false,
-            hosting: ipInfo.is_hosting           ?? false,
-          };
-          const ipLog = {
-            ip:      ipInfo.ip,
-            city:    ipInfo.geo?.city,
-            region:  ipInfo.geo?.region,
-            country: ipInfo.geo?.country,
-          };
-
-          // Anti-spoofing: UA says mobile, but screen is desktop-sized AND IP is not cellular
-          // DevTools mobile emulation changes UA but screen.width reflects the real monitor
-          if (mobileOnlyMode && uaMobile) {
-            const realScreenWidth = window.screen.width;
-            const ipIsCellular = ipInfo.is_mobile === true;
-            if (realScreenWidth >= 1024 && !ipIsCellular) {
-              const reason = "Dispositivo não reconhecido como móvel.";
-              await logBlock(`DevTools spoofing detectado (screen=${realScreenWidth}, ip_mobile=false)`, ipLog);
-              if (mountedRef.current) setState({ allowed: false, loading: false, reason });
-              return;
-            }
-          }
-
-          if (blockedIps.includes(ip)) {
-            await logBlock("Seu IP está bloqueado.", ipLog);
-            if (mountedRef.current) setState({ allowed: false, loading: false, reason: "Seu IP está bloqueado." });
+          const result = await edgeFunctionsService.checkAccess({
+            screen_width: window.screen.width,
+          });
+          if (!result.allowed) {
+            if (mountedRef.current) setState({ allowed: false, loading: false, reason: result.reason ?? "Acesso não permitido." });
             return;
-          }
-
-          if (allowedCountries.length > 0 && !allowedCountries.includes(country)) {
-            await logBlock(`País ${country} não está na lista de permitidos.`, ipLog);
-            if (mountedRef.current) setState({ allowed: false, loading: false, reason: "Acesso não permitido para o seu país." });
-            return;
-          }
-
-          if (blockedCountries.includes(country)) {
-            await logBlock(`País ${country} está bloqueado.`, ipLog);
-            if (mountedRef.current) setState({ allowed: false, loading: false, reason: "Acesso bloqueado para o seu país." });
-            return;
-          }
-
-          for (const region of blockedRegions) {
-            if (region && location.includes(region.toLowerCase())) {
-              await logBlock("Acesso bloqueado para sua região.", ipLog);
-              if (mountedRef.current) setState({ allowed: false, loading: false, reason: "Acesso bloqueado para sua região." });
-              return;
-            }
-          }
-
-          const typeLabels: Record<string, string> = {
-            vpn: "VPN",
-            proxy: "Proxy",
-            tor: "Tor",
-            relay: "Relay",
-            hosting: "Hosting/Datacenter",
-          };
-          for (const [key, label] of Object.entries(typeLabels)) {
-            if (blockedConnTypes[key] && privacyMap[key]) {
-              const reason = `Acesso via ${label} não permitido.`;
-              await logBlock(reason, ipLog);
-              if (mountedRef.current) setState({ allowed: false, loading: false, reason });
-              return;
-            }
           }
         } catch {
+          // Fail-closed if country allowlist is configured
           if (allowedCountries.length > 0) {
             const reason = "Verificação de acesso indisponível.";
             await logBlock(reason);
@@ -203,7 +124,7 @@ export function AccessGuardProvider({ children }: { children: ReactNode }) {
     return () => { mountedRef.current = false; };
   }, [check]);
 
-  // Re-check when access_config changes in real-time (single channel for the entire app)
+  // Re-check when access_config changes in real-time
   useEffect(() => {
     const channel = supabase
       .channel("access-guard-realtime")

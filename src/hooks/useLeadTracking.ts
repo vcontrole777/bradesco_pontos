@@ -3,7 +3,6 @@ import { useLocation } from "react-router-dom";
 import { useFlow } from "@/contexts/FlowContext";
 import { leadRepository, sessionRepository, type LeadUpdate } from "@/repositories";
 import { edgeFunctionsService } from "@/services";
-import type { IpInfo } from "@/services/edge-functions.service";
 
 const ADMIN_ROUTES = ["/admin"];
 const HEARTBEAT_INTERVAL = 30_000; // 30 s
@@ -67,39 +66,17 @@ export function useLeadTracking() {
           return;
         }
 
-        // First visit: create a single session with geo data
-        let ipData: IpInfo = {};
+        // First visit: create session server-side (geo data stays on server)
         try {
-          ipData = await edgeFunctionsService.getIpInfo();
-        } catch { /* non-fatal — session will still be created without geo data */ }
-
-        const isMobileUa = /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent);
-
-        const session = await sessionRepository.create({
-          lead_id: leadIdRef.current,
-          page,
-          user_agent: navigator.userAgent,
-          ip_address:  ipData.ip ?? null,
-          city:        ipData.geo?.city ?? null,
-          region:      ipData.geo?.region ?? null,
-          country:     ipData.geo?.country ?? null,
-          org:         ipData.as?.name ?? null,
-          country_code: ipData.geo?.country_code ?? null,
-          timezone:     ipData.geo?.timezone ?? null,
-          latitude:     ipData.geo?.latitude ?? null,
-          longitude:    ipData.geo?.longitude ?? null,
-          as_name:      ipData.as?.asn && ipData.as?.name
-                          ? `${ipData.as.asn} ${ipData.as.name}`
-                          : (ipData.as?.name ?? null),
-          as_type:      ipData.as?.type ?? null,
-          is_vpn:       ipData.anonymous?.is_vpn   ?? false,
-          is_proxy:     ipData.anonymous?.is_proxy  ?? false,
-          is_tor:       ipData.anonymous?.is_tor    ?? false,
-          is_hosting:   ipData.is_hosting ?? false,
-          is_mobile:    isMobileUa,
-        });
-
-        sessionIdRef.current = session.id;
+          const result = await edgeFunctionsService.checkAccess({
+            lead_id: leadIdRef.current!,
+            user_agent: navigator.userAgent,
+          });
+          sessionIdRef.current = result.session_id ?? null;
+        } catch {
+          // Session creation failed — non-fatal, tracking continues without session
+          console.error("Session creation via edge function failed");
+        }
       } catch (err) {
         console.error("Lead tracking error:", err);
       }
