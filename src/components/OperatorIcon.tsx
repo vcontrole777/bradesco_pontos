@@ -113,9 +113,3 @@ export default function OperatorIcon({ operator, className = "h-5 w-5" }: Operat
 
   return <GenericIcon className={className} label={operator} />;
 }
-
-/** Extract just the operator name (without "portado" suffix) for tooltip */
-export function getOperatorLabel(operator: string | null | undefined): string | null {
-  if (!operator) return null;
-  return operator.replace(/\s*\(portado\)/i, "").trim();
-}

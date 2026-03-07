@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
 
     const url = `${API_BASE}?search_number=${number}&user=${encodeURIComponent(user)}&pass=${encodeURIComponent(pass)}&completo&nome`;
 
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
     const text = await response.text();
 
     if (text.trim() === "55999" || !text.trim()) {

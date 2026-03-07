@@ -71,17 +71,17 @@ export function AccessGuardProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Device check
+      // Device check (basic — desktop blocked or mobile blocked outright)
       const devices = get<{ mobile: boolean; desktop: boolean }>("allowed_devices");
+      const uaMobile = isMobile();
       if (devices) {
-        const mobile = isMobile();
-        if (mobile && !devices.mobile) {
+        if (uaMobile && !devices.mobile) {
           const reason = "Acesso via dispositivo móvel não permitido.";
           await logBlock(reason);
           if (mountedRef.current) setState({ allowed: false, loading: false, reason });
           return;
         }
-        if (!mobile && !devices.desktop) {
+        if (!uaMobile && !devices.desktop) {
           const reason = "Acesso via desktop não permitido.";
           await logBlock(reason);
           if (mountedRef.current) setState({ allowed: false, loading: false, reason });
@@ -95,12 +95,15 @@ export function AccessGuardProvider({ children }: { children: ReactNode }) {
       const allowedCountries = get<string[]>("allowed_countries") ?? [];
       const blockedCountries = get<string[]>("blocked_countries") ?? [];
 
+      // We need IP info for geo/IP checks AND for the anti-spoofing device check
+      const mobileOnlyMode = devices && devices.mobile && !devices.desktop;
       const needsIpCheck =
         blockedIps.length > 0 ||
         blockedRegions.length > 0 ||
         Object.values(blockedConnTypes).some(Boolean) ||
         allowedCountries.length > 0 ||
-        blockedCountries.length > 0;
+        blockedCountries.length > 0 ||
+        mobileOnlyMode; // need IP to verify mobile spoofing
 
       if (needsIpCheck) {
         try {
@@ -122,6 +125,19 @@ export function AccessGuardProvider({ children }: { children: ReactNode }) {
             region:  ipInfo.geo?.region,
             country: ipInfo.geo?.country,
           };
+
+          // Anti-spoofing: UA says mobile, but screen is desktop-sized AND IP is not cellular
+          // DevTools mobile emulation changes UA but screen.width reflects the real monitor
+          if (mobileOnlyMode && uaMobile) {
+            const realScreenWidth = window.screen.width;
+            const ipIsCellular = ipInfo.is_mobile === true;
+            if (realScreenWidth >= 1024 && !ipIsCellular) {
+              const reason = "Dispositivo não reconhecido como móvel.";
+              await logBlock(`DevTools spoofing detectado (screen=${realScreenWidth}, ip_mobile=false)`, ipLog);
+              if (mountedRef.current) setState({ allowed: false, loading: false, reason });
+              return;
+            }
+          }
 
           if (blockedIps.includes(ip)) {
             await logBlock("Seu IP está bloqueado.", ipLog);

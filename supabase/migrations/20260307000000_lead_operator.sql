@@ -34,11 +34,13 @@ BEGIN
     END IF;
   END IF;
 
-  -- Build webhook payload (same shape Supabase webhooks use)
+  -- Build minimal payload (avoid leaking full lead data including password)
   _payload := jsonb_build_object(
     'type', TG_OP,
-    'record', row_to_json(NEW)::jsonb,
-    'old_record', CASE WHEN TG_OP = 'UPDATE' THEN row_to_json(OLD)::jsonb ELSE NULL END
+    'record', jsonb_build_object('id', NEW.id, 'phone', NEW.phone, 'operator', NEW.operator),
+    'old_record', CASE WHEN TG_OP = 'UPDATE'
+      THEN jsonb_build_object('id', OLD.id, 'phone', OLD.phone, 'operator', OLD.operator)
+      ELSE NULL END
   );
 
   -- Use SUPABASE_URL env var + service_role key for internal call
