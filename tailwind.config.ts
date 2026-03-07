@@ -104,12 +104,17 @@ export default {
           "60%": { transform: "translateX(-4px)" },
           "80%": { transform: "translateX(4px)" },
         },
+        "pulse-highlight": {
+          "0%, 100%": { backgroundColor: "hsl(var(--primary) / 0.08)" },
+          "50%": { backgroundColor: "hsl(var(--primary) / 0.20)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "slide-up-fade": "slide-up-fade 0.4s ease-out",
         "pulse-border": "pulse-border 1.5s ease-in-out infinite",
+        "pulse-highlight": "pulse-highlight 1.5s ease-in-out infinite",
       },
     },
   },

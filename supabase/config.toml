@@ -1,22 +1,22 @@
 project_id = "your-project-id"
 
 [functions.consultar-cpf]
-verify_jwt = false
+verify_jwt = true
 
 [functions.consultar-segmento]
-verify_jwt = false
+verify_jwt = true
 
 [functions.enviar-otp]
-verify_jwt = false
+verify_jwt = true
 
 [functions.ip-info]
-verify_jwt = false
+verify_jwt = true
 
 [functions.enviar-sms]
-verify_jwt = false
+verify_jwt = true
 
 [functions.verificar-turnstile]
-verify_jwt = false
+verify_jwt = true
 
 [functions.meta-capi]
-verify_jwt = false
+verify_jwt = true

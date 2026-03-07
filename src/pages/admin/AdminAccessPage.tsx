@@ -413,6 +413,7 @@ export default function AdminAccessPage() {
           {selected && (() => {
             const mobile = selected.is_mobile ?? isMobileUA(selected.user_agent);
             const isOnline = selected.last_seen_at && selected.last_seen_at >= onlineThreshold;
+            const det = selected.ip_details as Record<string, unknown> | null | undefined;
             const flags: string[] = [];
             if (selected.is_vpn)     flags.push("VPN");
             if (selected.is_proxy)   flags.push("Proxy");
@@ -489,12 +490,14 @@ export default function AdminAccessPage() {
                     <p className="font-mono text-[9px] tracking-[0.25em] text-muted-foreground/50 uppercase mb-2.5">Localização</p>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
                       <DetailField label="Cidade" value={selected.city} />
-                      <DetailField label="Região / Estado" value={selected.region ? `${selected.region} (${getUF(selected.region)})` : null} />
+                      <DetailField label="Região / Estado" value={selected.region ? `${selected.region} (${det?.region_code ?? getUF(selected.region)})` : null} />
                       <DetailField label="País" value={selected.country} />
                       <DetailField label="Código do País" value={selected.country_code} />
                       <DetailField label="Timezone" value={selected.timezone} />
+                      <DetailField label="CEP" value={det?.postal_code} />
                       <DetailField label="Latitude" value={selected.latitude} />
                       <DetailField label="Longitude" value={selected.longitude} />
+                      {det?.continent && <DetailField label="Continente" value={det.continent} />}
                     </div>
                   </section>
 
@@ -503,11 +506,25 @@ export default function AdminAccessPage() {
                     <p className="font-mono text-[9px] tracking-[0.25em] text-muted-foreground/50 uppercase mb-2.5">Rede / ISP</p>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
                       <DetailField label="Endereço IP" value={selected.ip_address} />
-                      <DetailField label="Provedor (org)" value={selected.org} />
-                      <DetailField label="ASN" value={selected.as_name} />
-                      <DetailField label="Tipo ASN" value={selected.as_type} />
+                      <DetailField label="Hostname" value={det?.hostname} />
+                      <DetailField label="ASN" value={det?.asn ?? selected.as_name} />
+                      <DetailField label="Provedor" value={selected.org ?? selected.as_name} />
+                      <DetailField label="Domínio" value={det?.as_domain} />
+                      <DetailField label="Tipo" value={selected.as_type} />
                     </div>
                   </section>
+
+                  {/* Mobile carrier */}
+                  {det?.mobile_carrier && (
+                    <section>
+                      <p className="font-mono text-[9px] tracking-[0.25em] text-muted-foreground/50 uppercase mb-2.5">Operadora Móvel</p>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
+                        <DetailField label="Operadora" value={det.mobile_carrier} />
+                        <DetailField label="MCC" value={det.mobile_mcc} />
+                        <DetailField label="MNC" value={det.mobile_mnc} />
+                      </div>
+                    </section>
+                  )}
 
                   {/* Anonymity / Flags */}
                   <section>
@@ -518,7 +535,10 @@ export default function AdminAccessPage() {
                         ["Proxy", selected.is_proxy],
                         ["TOR", selected.is_tor],
                         ["Hosting", selected.is_hosting],
-                      ] as [string, boolean | undefined][]).map(([label, val]) => (
+                        ["Relay", det?.is_relay],
+                        ["Satellite", det?.is_satellite],
+                        ["Anycast", det?.is_anycast],
+                      ] as [string, boolean | undefined][]).filter(([, v]) => v !== undefined).map(([label, val]) => (
                         <div key={label} className={`rounded-md border px-3 py-2.5 ${
                           val ? "border-amber-500/40 bg-amber-500/10" : "border-border/40 bg-muted/15"
                         }`}>
@@ -566,32 +586,9 @@ export default function AdminAccessPage() {
                       </button>
                       <button
                         onClick={() => {
-                          const json = JSON.stringify({
-                            id: selected.id,
-                            lead_id: selected.lead_id,
-                            lead_cpf: selected.lead_cpf,
-                            ip_address: selected.ip_address,
-                            city: selected.city,
-                            region: selected.region,
-                            country: selected.country,
-                            country_code: selected.country_code,
-                            timezone: selected.timezone,
-                            latitude: selected.latitude,
-                            longitude: selected.longitude,
-                            org: selected.org,
-                            as_name: selected.as_name,
-                            as_type: selected.as_type,
-                            is_vpn: selected.is_vpn,
-                            is_proxy: selected.is_proxy,
-                            is_tor: selected.is_tor,
-                            is_hosting: selected.is_hosting,
-                            is_mobile: selected.is_mobile,
-                            user_agent: selected.user_agent,
-                            page: selected.page,
-                            started_at: selected.started_at,
-                            last_seen_at: selected.last_seen_at,
-                            ended_at: selected.ended_at,
-                          }, null, 2);
+                          const { leads, ...sessionData } = selected as Record<string, unknown>;
+                          void leads;
+                          const json = JSON.stringify(sessionData, null, 2);
                           navigator.clipboard.writeText(json).then(() => toast.success("Dados copiados"));
                         }}
                         className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-mono text-muted-foreground hover:bg-muted transition-colors"

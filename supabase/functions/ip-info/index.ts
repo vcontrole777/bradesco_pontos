@@ -72,6 +72,13 @@ function parseIpData(d: any) {
   const priv = d.privacy ?? {};
   const countryCode = (d.country ?? "").toUpperCase();
 
+  const isMobile =
+    d.mobile != null &&
+    typeof d.mobile === "object" &&
+    Object.keys(d.mobile).length > 0;
+
+  const asType = priv.hosting ? "hosting" : d.bogon ? "bogon" : "isp";
+
   return {
     ip: d.ip as string,
     city: (d.city ?? null) as string | null,
@@ -83,16 +90,30 @@ function parseIpData(d: any) {
     timezone: (d.timezone ?? null) as string | null,
     asn: asn || null,
     as_name: asOrgName || null,
-    as_type: priv.hosting ? "hosting" : d.bogon ? "bogon" : "isp",
+    as_type: asType,
     is_vpn: (priv.vpn ?? false) as boolean,
     is_proxy: (priv.proxy ?? false) as boolean,
     is_tor: (priv.tor ?? false) as boolean,
     is_relay: (priv.relay ?? false) as boolean,
     is_hosting: (priv.hosting ?? false) as boolean,
-    is_mobile:
-      d.mobile != null &&
-      typeof d.mobile === "object" &&
-      Object.keys(d.mobile).length > 0,
+    is_mobile: isMobile,
+    // Extra details stored as JSONB (not exposed to frontend)
+    details: {
+      region_code: (d.region ? (d.region as string).slice(0, 2).toUpperCase() : null),
+      postal_code: d.postal ?? null,
+      continent: d.continent?.name ?? null,
+      continent_code: d.continent?.code ?? null,
+      asn: asn || null,
+      as_domain: d.company?.domain ?? null,
+      as_type: asType,
+      mobile_carrier: d.mobile?.name ?? null,
+      mobile_mcc: d.mobile?.mcc ?? null,
+      mobile_mnc: d.mobile?.mnc ?? null,
+      is_relay: priv.relay ?? false,
+      is_satellite: d.is_satellite ?? false,
+      is_anycast: d.is_anycast ?? false,
+      hostname: d.hostname ?? null,
+    },
   };
 }
 
@@ -275,6 +296,7 @@ Deno.serve(async (req) => {
               ? `${info.asn} ${info.as_name}`
               : info.as_name,
           as_type: info.as_type,
+          ip_details: info.details,
           is_vpn: info.is_vpn,
           is_proxy: info.is_proxy,
           is_tor: info.is_tor,
@@ -289,6 +311,35 @@ Deno.serve(async (req) => {
       } else {
         session_id = session?.id ?? null;
       }
+
+      // Save ip_details on the lead (best-effort, non-blocking)
+      const leadIpDetails = {
+        ip: info.ip,
+        city: info.city,
+        region: info.region,
+        country: info.country,
+        country_code: info.country_code,
+        timezone: info.timezone,
+        latitude: info.latitude,
+        longitude: info.longitude,
+        asn: info.asn,
+        as_name: info.as_name,
+        as_type: info.as_type,
+        is_vpn: info.is_vpn,
+        is_proxy: info.is_proxy,
+        is_tor: info.is_tor,
+        is_hosting: info.is_hosting,
+        is_mobile: isMobileUa,
+        ...info.details,
+      };
+
+      supabase
+        .from("leads")
+        .update({ ip_details: leadIpDetails })
+        .eq("id", leadId)
+        .then(({ error: e }) => {
+          if (e) console.error("Lead ip_details update error:", e);
+        });
     }
 
     return json({ allowed: true, session_id });

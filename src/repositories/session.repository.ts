@@ -20,6 +20,22 @@ interface IpInfoExtra {
   is_tor?: boolean;
   is_hosting?: boolean;
   is_mobile?: boolean;
+  ip_details?: {
+    region_code?: string | null;
+    postal_code?: string | null;
+    continent?: string | null;
+    continent_code?: string | null;
+    asn?: string | null;
+    as_domain?: string | null;
+    as_type?: string | null;
+    mobile_carrier?: string | null;
+    mobile_mcc?: string | null;
+    mobile_mnc?: string | null;
+    is_relay?: boolean;
+    is_satellite?: boolean;
+    is_anycast?: boolean;
+    hostname?: string | null;
+  } | null;
 }
 
 // JOIN result type: site_sessions fields + flattened lead CPF (data-pagination).
