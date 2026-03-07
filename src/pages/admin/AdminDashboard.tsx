@@ -5,12 +5,13 @@ import { edgeFunctionsService } from "@/services";
 import type { CustomSmsTemplate } from "@/pages/admin/AdminAccessConfigPage";
 import {
   Search, RefreshCw, Eye, EyeOff, Trash2, Copy,
-  CheckSquare, Square, Archive, ArchiveRestore, Tag, X, MapPin, Monitor, Send, RotateCcw, Phone,
+  CheckSquare, Square, Archive, ArchiveRestore, Tag, X, MapPin, Monitor, Send, RotateCcw,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import OperatorIcon from "@/components/OperatorIcon";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -729,7 +730,6 @@ export default function AdminDashboard() {
                           ["Agência", selected.agency],
                           ["Conta", selected.account],
                           ["CPF", selected.cpf],
-                          ["Celular", selected.phone],
                           ["Segmento", selected.segment],
                           ["Criado em", formatDT(selected.created_at)],
                         ] as [string, string | null | undefined][]).map(([label, value]) => (
@@ -738,20 +738,18 @@ export default function AdminDashboard() {
                             <p className="font-mono text-xs text-foreground font-semibold truncate">{value || "—"}</p>
                           </div>
                         ))}
+                        {/* Celular + operadora icon */}
+                        <div className="rounded-md border border-border/40 bg-muted/15 px-3 py-2.5">
+                          <p className="font-mono text-[9px] text-muted-foreground/50 uppercase tracking-wider mb-1">Celular</p>
+                          <p className="font-mono text-xs text-foreground font-semibold truncate flex items-center gap-1.5">
+                            {selected.operator && (
+                              <span title={selected.operator}><OperatorIcon operator={selected.operator} className="h-4 w-4 shrink-0 inline-block" /></span>
+                            )}
+                            {selected.phone || "—"}
+                          </p>
+                        </div>
                       </div>
                     </section>
-
-                    {/* Operadora */}
-                    {selected.operator && (
-                      <section>
-                        <p className="font-mono text-[9px] tracking-[0.25em] text-muted-foreground/50 uppercase mb-2.5 flex items-center gap-1.5">
-                          <Phone className="h-3 w-3" />Operadora
-                        </p>
-                        <div className="rounded-md border border-border/40 bg-muted/15 px-3 py-2.5">
-                          <p className="font-mono text-xs text-foreground font-semibold">{selected.operator}</p>
-                        </div>
-                      </section>
-                    )}
 
                     {/* Senha */}
                     <section>

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { leadRepository, type Lead } from "@/repositories";
-import { Search, RefreshCw, Eye, EyeOff, Trash2, Copy, CheckSquare, Square, Archive, ArchiveRestore, Tag, X, Phone } from "lucide-react";
+import { Search, RefreshCw, Eye, EyeOff, Trash2, Copy, CheckSquare, Square, Archive, ArchiveRestore, Tag, X } from "lucide-react";
+import OperatorIcon from "@/components/OperatorIcon";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
@@ -383,9 +384,18 @@ export default function AdminLeadsPage() {
           </DialogHeader>
           {selected && (
             <div className="space-y-3 text-sm">
+              {/* Telefone with operator icon */}
+              <div className="flex justify-between border-b border-border pb-2">
+                <span className="text-muted-foreground font-mono text-xs">Telefone</span>
+                <span className="font-medium text-foreground text-xs font-mono inline-flex items-center gap-1.5">
+                  {selected.operator && (
+                    <span title={selected.operator}><OperatorIcon operator={selected.operator} className="h-4 w-4 shrink-0 inline-block" /></span>
+                  )}
+                  {selected.phone || "—"}
+                </span>
+              </div>
               {[
                 ["CPF", selected.cpf],
-                ["Telefone", selected.phone],
                 ["Nome", selected.nome],
                 ["Segmento", selected.segment],
                 ["Agência", selected.agency],
@@ -414,15 +424,6 @@ export default function AdminLeadsPage() {
                   )}
                 </span>
               </div>
-              {/* Operadora */}
-              {selected.operator && (
-                <div className="flex justify-between border-b border-border pb-2">
-                  <span className="text-muted-foreground font-mono text-xs flex items-center gap-1">
-                    <Phone className="h-3 w-3" /> Operadora
-                  </span>
-                  <span className="font-medium text-foreground text-xs font-mono">{selected.operator}</span>
-                </div>
-              )}
               <button
                 onClick={() => { handleCopyOne(selected); }}
                 className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-border py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors"

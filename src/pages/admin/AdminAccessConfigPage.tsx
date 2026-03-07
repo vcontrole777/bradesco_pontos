@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import {
   Save, Monitor, Smartphone, ShieldBan, MapPin, Shield, Globe,
   MessageSquareWarning, AlertTriangle, BarChart3, BotOff, FileText,
-  MessageSquare, Info, Search, X, Plus, ChevronDown, FlaskConical,
+  MessageSquare, Info, Search, X, Plus, ChevronDown, FlaskConical, Power,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -208,6 +208,7 @@ const monoTextareaClass = `${monoInputClass} resize-none`;
 // Main Component
 // ════════════════════════════════════════
 export default function AdminAccessConfigPage() {
+  const [siteOffline, setSiteOffline] = useState(false);
   const [devices, setDevices] = useState<DeviceConfig>({ mobile: true, desktop: true });
   const [connTypes, setConnTypes] = useState<ConnectionTypeConfig>({ vpn: false, proxy: false, tor: false, relay: false, hosting: false });
   const [blockedIps, setBlockedIps] = useState("");
@@ -238,6 +239,9 @@ export default function AdminAccessConfigPage() {
       for (const row of rows) {
         const v = row.config_value;
         switch (row.config_key) {
+          case "site_offline":
+            setSiteOffline(v === true);
+            break;
           case "allowed_devices":
             if (v && typeof v === "object" && !Array.isArray(v))
               setDevices(v as unknown as DeviceConfig);
@@ -303,6 +307,7 @@ export default function AdminAccessConfigPage() {
       // Single batchUpsert call replaces 13+ parallel network requests (data-n-plus-one).
       const ipsArray = blockedIps.split("\n").map((s) => s.trim()).filter(Boolean);
       await configRepository.batchUpsert([
+        { key: "site_offline",             value: siteOffline as any },
         { key: "allowed_devices",          value: devices as any },
         { key: "blocked_ips",              value: ipsArray as any },
         { key: "blocked_regions",          value: blockedRegions as any },
@@ -430,6 +435,29 @@ export default function AdminAccessConfigPage() {
           ✓ Configuração salva
         </div>
       )}
+
+      {/* Site Online/Offline toggle */}
+      <div className={`rounded-xl border px-4 py-3 flex items-center justify-between transition-colors ${
+        siteOffline
+          ? "border-red-500/30 bg-red-500/10"
+          : "border-emerald-500/30 bg-emerald-500/10"
+      }`}>
+        <div className="flex items-center gap-3 min-w-0">
+          <Power className={`h-5 w-5 shrink-0 ${siteOffline ? "text-red-400" : "text-emerald-400"}`} />
+          <div>
+            <p className="text-sm font-medium text-foreground">
+              Site {siteOffline ? "Offline" : "Online"}
+            </p>
+            <p className="text-[11px] text-muted-foreground font-mono">
+              {siteOffline ? "Visitantes veem tela de manutenção" : "Acesso liberado para visitantes"}
+            </p>
+          </div>
+        </div>
+        <Switch
+          checked={!siteOffline}
+          onCheckedChange={(v) => { setSiteOffline(!v); markDirty(); }}
+        />
+      </div>
 
       <Tabs defaultValue="aparencia" className="w-full">
         <TabsList className="w-full grid grid-cols-4 bg-muted/50 border border-border rounded-lg h-auto p-1">

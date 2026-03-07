@@ -64,6 +64,13 @@ export function AccessGuardProvider({ children }: { children: ReactNode }) {
       const get = <T,>(key: string): T | undefined =>
         configs.find((c) => c.config_key === key)?.config_value as T | undefined;
 
+      // Site offline check (instant, no IP call needed)
+      const siteOffline = get<boolean>("site_offline");
+      if (siteOffline === true) {
+        if (mountedRef.current) setState({ allowed: false, loading: false, reason: "Site em manutenção. Tente novamente mais tarde." });
+        return;
+      }
+
       // Device check
       const devices = get<{ mobile: boolean; desktop: boolean }>("allowed_devices");
       if (devices) {
