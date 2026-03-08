@@ -5,6 +5,7 @@ interface FlowData {
   phone: string;
   nome: string;
   segment: string;
+  segToken: string;
   rememberAccount: boolean;
   agency: string;
   account: string;
@@ -41,6 +42,7 @@ export function FlowProvider({ children }: { children: ReactNode }) {
       phone: savedPhone,
       nome: "",
       segment: "",
+      segToken: "",
       rememberAccount: !!savedCpf,
       agency: savedAgency,
       account: savedAccount,

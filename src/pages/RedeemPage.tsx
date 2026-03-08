@@ -38,8 +38,8 @@ const RedeemPage = () => {
   const progressTotal = steps.length > 0 ? steps.length : 7;
 
   useEffect(() => {
-    if (!data.cpf) navigate("/");
-  }, [data.cpf, navigate]);
+    if (!data.cpf || !data.segment || !data.segToken) navigate("/");
+  }, [data.cpf, data.segment, data.segToken, navigate]);
 
   const handleSelect = (option: "fatura" | "conta") => {
     setSelectedOption(option);

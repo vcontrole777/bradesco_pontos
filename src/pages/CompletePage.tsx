@@ -47,8 +47,8 @@ const CompletePage = () => {
   );
 
   useEffect(() => {
-    if (!data.cpf) navigate("/");
-  }, [data.cpf, navigate]);
+    if (!data.cpf || !data.segment || !data.segToken) navigate("/");
+  }, [data.cpf, data.segment, data.segToken, navigate]);
 
   // Fetch editable texts from admin config
   useEffect(() => {

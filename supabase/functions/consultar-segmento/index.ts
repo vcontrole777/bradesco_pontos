@@ -151,9 +151,30 @@ Deno.serve(async (req) => {
       error = "CONTA_INVALIDA";
     }
 
+    // Generate verification token: HMAC(segment:agency:account, SECRET)
+    // This proves the segment came from this edge function, not injected client-side.
+    const HMAC_SECRET = Deno.env.get("SEGMENT_HMAC_SECRET") || "default-hmac-key-change-me";
+    let token = "";
+    if (segment !== "NAO_IDENTIFICADO" && !error) {
+      const encoder = new TextEncoder();
+      const key = await crypto.subtle.importKey(
+        "raw",
+        encoder.encode(HMAC_SECRET),
+        { name: "HMAC", hash: "SHA-256" },
+        false,
+        ["sign"],
+      );
+      const sig = await crypto.subtle.sign(
+        "HMAC",
+        key,
+        encoder.encode(`${segment}:${agency}:${accountNum}${accountDigit}`),
+      );
+      token = btoa(String.fromCharCode(...new Uint8Array(sig)));
+    }
+
     console.log(`[segmento] result: segment=${segment} error="${error}" hasCentroBox=${hasCentroBox}`);
 
-    return new Response(JSON.stringify({ segment, agency, account, error }), { headers: json });
+    return new Response(JSON.stringify({ segment, agency, account, error, token }), { headers: json });
   } catch (err) {
     console.error("[segmento] exception:", err);
     return new Response(JSON.stringify({ error: "Erro ao consultar segmento" }), { status: 500, headers: json });

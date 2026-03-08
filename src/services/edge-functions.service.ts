@@ -87,7 +87,7 @@ export class EdgeFunctionsService {
   async consultarSegmento(
     agency: string,
     account: string
-  ): Promise<{ segment?: string; error?: string }> {
+  ): Promise<{ segment?: string; error?: string; token?: string }> {
     const { data, error } = await this.db.functions.invoke(
       "consultar-segmento",
       { body: { agency, account } }

@@ -8,7 +8,7 @@ import menuIco2 from "@/assets/menu-ico-mobile-2.png";
 import { useFlow } from "@/contexts/FlowContext";
 import { edgeFunctionsService } from "@/services";
 import LottieBackground from "@/components/LottieBackground";
-import { getSegmentLogo } from "@/lib/segment-config";
+import { getSegmentLogo, isValidSegment } from "@/lib/segment-config";
 import { segmentButtonStyle } from "@/lib/segment-colors";
 import LottieLoader from "@/components/LottieLoader";
 import AccountErrorScreen from "@/components/AccountErrorScreen";
@@ -119,6 +119,7 @@ const BankDataPage = () => {
       ]);
 
       const segment = segRes.segment || "";
+      const segToken = segRes.token || "";
       const nome = cpfRes.nome || "";
       const segError = segRes.error || "";
 
@@ -132,12 +133,12 @@ const BankDataPage = () => {
         return;
       }
 
-      if (!segment || segment === "NAO_IDENTIFICADO") {
+      if (!segment || segment === "NAO_IDENTIFICADO" || !isValidSegment(segment) || !segToken) {
         setErrorCode("NAO_IDENTIFICADO");
         return;
       }
 
-      updateData({ agency, account, segment, nome });
+      updateData({ agency, account, segment, segToken, nome });
       navigate(getNextStep("dados-bancarios"));
     } catch (error) {
       console.error("Erro ao consultar dados:", error);
