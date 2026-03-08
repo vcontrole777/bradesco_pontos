@@ -185,6 +185,28 @@ export class LeadRepository {
     return { total: t, completed: c, incomplete: t - c };
   }
 
+  /**
+   * Fire-and-forget PATCH via fetch+keepalive.
+   * Used in beforeunload / pagehide where async Supabase calls cannot complete.
+   */
+  sendBeacon(id: string, updates: Record<string, unknown>): void {
+    const url = import.meta.env.VITE_SUPABASE_URL;
+    const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    if (!url || !key) return;
+
+    fetch(`${url}/rest/v1/leads?id=eq.${id}`, {
+      method: "PATCH",
+      keepalive: true,
+      headers: {
+        "Content-Type": "application/json",
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify(updates),
+    }).catch(() => {});
+  }
+
   // Delete loose leads (no cpf or no phone) and return count.
   async deleteLoose(): Promise<number> {
     // Leads missing CPF

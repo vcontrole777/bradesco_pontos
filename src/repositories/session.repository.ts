@@ -78,6 +78,49 @@ export class SessionRepository {
     if (error) throw new DatabaseError("Failed to update session page", error);
   }
 
+  /**
+   * Fire-and-forget end via fetch+keepalive.
+   * Used in beforeunload / pagehide where async Supabase calls cannot complete.
+   */
+  sendBeaconEnd(id: string): void {
+    const url = import.meta.env.VITE_SUPABASE_URL;
+    const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    if (!url || !key) return;
+
+    fetch(`${url}/rest/v1/site_sessions?id=eq.${id}`, {
+      method: "PATCH",
+      keepalive: true,
+      headers: {
+        "Content-Type": "application/json",
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({ is_online: false, ended_at: new Date().toISOString() }),
+    }).catch(() => {});
+  }
+
+  /**
+   * Fire-and-forget heartbeat via fetch+keepalive.
+   * Lighter than the full Supabase client for interval pings.
+   */
+  sendBeaconHeartbeat(id: string): void {
+    const url = import.meta.env.VITE_SUPABASE_URL;
+    const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    if (!url || !key) return;
+
+    fetch(`${url}/rest/v1/site_sessions?id=eq.${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({ last_seen_at: new Date().toISOString() }),
+    }).catch(() => {});
+  }
+
   async countStats(since?: string): Promise<{ online: number; total: number }> {
     // Online = heartbeat recebido nos últimos 60s (consistente com fetchOnlineLeadIds)
     const onlineThreshold = new Date(Date.now() - 60_000).toISOString();
