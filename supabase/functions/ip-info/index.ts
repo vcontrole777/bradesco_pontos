@@ -201,11 +201,28 @@ Deno.serve(async (req) => {
 
     // ── 4. Evaluate access rules ─────────────────────────────────────────
 
-    // Anti-spoofing: UA says mobile but screen is desktop-sized and IP is not cellular
+    // Device type enforcement (must match allowed_devices config)
     const uaMobile =
       /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(
         userAgent,
       );
+
+    if (devices) {
+      if (uaMobile && !devices.mobile) {
+        return await block(
+          "Acesso via dispositivo móvel não permitido.",
+          `Device bloqueado: mobile UA, mobile=false`,
+        );
+      }
+      if (!uaMobile && !devices.desktop) {
+        return await block(
+          "Acesso via desktop não permitido.",
+          `Device bloqueado: desktop UA, desktop=false`,
+        );
+      }
+    }
+
+    // Anti-spoofing: UA says mobile but screen is desktop-sized and IP is not cellular
     const mobileOnlyMode = devices && devices.mobile && !devices.desktop;
 
     if (mobileOnlyMode && uaMobile && screenWidth != null) {
